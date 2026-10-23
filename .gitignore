@@ -1,0 +1,17 @@
+# written when the documents are knitted
+outputs/
+figures/
+*.html
+*_files/
+*_cache/
+
+# R / RStudio
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# OS
+.DS_Store
+Thumbs.db

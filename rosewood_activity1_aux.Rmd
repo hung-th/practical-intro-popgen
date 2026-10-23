@@ -1,0 +1,662 @@
+---
+title: "Activity 1: auxiliary figures and checks"
+subtitle: "Tutor's file. Not part of the student practical."
+author: "Tin Hang Hung"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    code_folding: hide
+    df_print: kable
+---
+
+```{r knitr-setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 8, fig.height = 5, dpi = 120
+)
+```
+
+This file does two jobs that are deliberately kept out of the student practical:
+
+1. **Checks.** It re-runs the practical and compares every result with the number
+   quoted in the handout's *Expect to see* boxes. `PASS` means your machine
+   reproduces the handout; `FAIL` shows both values.
+2. **Teaching figures.** It rebuilds the seven figures used on the Notion page and in
+   the pre-practical slides, and writes them to `figures/`.
+
+It needs the same three CSVs as the practical, in the same folder. It takes a few
+minutes, because it repeats the whole analysis from scratch.
+
+# Setup
+
+```{r packages}
+pkgs <- c("poppr", "pegas", "hierfstat", "adegenet", "ade4",
+          "lattice", "mapplots", "maps", "RColorBrewer")
+missing <- pkgs[!pkgs %in% rownames(installed.packages())]
+if (length(missing)) stop("Install these packages first: ", paste(missing, collapse = ", "))
+invisible(lapply(pkgs, library, character.only = TRUE))
+dir.create("figures", showWarnings = FALSE)
+
+data.frame(package = pkgs,
+           version = sapply(pkgs, function(p) as.character(packageVersion(p))),
+           row.names = NULL)
+```
+
+Built and checked with R 4.5.1, poppr 2.9.8, adegenet 2.1.11, hierfstat 0.5.11,
+pegas 1.3 and ade4 1.7.23.
+
+```{r check-helper}
+# check(): compare a result with the value quoted in the handout
+.checks <- data.frame(task = character(), label = character(), result = character())
+check <- function(task, label, value, expected, tol = 0) {
+  ok <- if (is.numeric(expected)) {
+    length(value) == length(expected) && isTRUE(all(abs(value - expected) <= tol))
+  } else identical(as.character(value), as.character(expected))
+  cat(sprintf("%s  [%s] %s: got %s, handout says %s\n", if (ok) "PASS" else "FAIL", task, label,
+              paste(format(value, digits = 4), collapse = " "),
+              paste(format(expected, digits = 4), collapse = " ")))
+  .checks[nrow(.checks) + 1, ] <<- c(task, label, if (ok) "PASS" else "FAIL")
+  invisible(ok)
+}
+```
+
+# Re-run the practical
+
+Everything the checks and figures need, in one block, with the practical's seeds.
+
+```{r pipeline, results = "hide"}
+set.seed(2026)
+rosewood <- read.genalex("rosewood.csv")
+
+# Station 1
+set.seed(2026)
+gac    <- genotype_curve(rosewood, sample = 1000, quiet = TRUE)
+rw_lt  <- locus_table(rosewood)
+mt     <- info_table(rosewood, type = "missing", plot = FALSE)
+pp     <- poppr(rosewood)
+hexp   <- setNames(pp$Hexp, pp$Pop)
+
+# Station 2
+set.seed(2026)
+rw_hwe_pop <- lapply(seppop(rosewood), hw.test, B = 1000)
+rw_hwe_mat <- sapply(rw_hwe_pop, "[", i = TRUE, j = 3)
+hwe_fdr    <- p.adjust(rw_hwe_mat, method = "BH")
+
+# Station 3
+set.seed(2026); ia_all <- ia(rosewood, sample = 199)
+set.seed(2026); ia_py  <- ia(popsub(rosewood, "PY"), sample = 199)
+rw_pair <- pair.ia(rosewood, quiet = TRUE)
+
+# Station 4
+rw_sum    <- summary(rosewood)
+d         <- data.frame(pop = names(rw_sum$pop.n.all),
+                        n = as.numeric(rw_sum$n.by.pop),
+                        alleles = as.numeric(rw_sum$pop.n.all))
+fit       <- lm(alleles ~ n, data = d)
+rw_hfstat <- genind2hierfstat(rosewood)
+rw_ar     <- allelic.richness(rw_hfstat)
+rw_pop_ar <- colMeans(rw_ar$Ar, na.rm = TRUE)
+d$richness  <- rw_pop_ar[d$pop]
+rw_pop_stat <- basic.stats(rw_hfstat, diploid = TRUE, digits = 3)
+rw_pop_ho   <- colMeans(rw_pop_stat$Ho,  na.rm = TRUE)
+rw_pop_hs   <- colMeans(rw_pop_stat$Hs,  na.rm = TRUE)
+rw_pop_fis  <- colMeans(rw_pop_stat$Fis, na.rm = TRUE)
+set.seed(2026)
+fis_ci    <- boot.ppfis(rw_hfstat, nboot = 1000)$fis.ci
+pop_order <- levels(factor(rw_hfstat$pop))
+rw_table  <- data.frame(
+  pop = pop_order, n = as.numeric(rw_sum$n.by.pop[pop_order]),
+  alleles = as.numeric(rw_sum$pop.n.all[pop_order]),
+  richness = round(rw_pop_ar[pop_order], 2), Ho = round(rw_pop_ho[pop_order], 3),
+  He = round(rw_pop_hs[pop_order], 3), Fis = round(rw_pop_fis[pop_order], 3),
+  Fis_lo = round(fis_ci[, 1], 3), Fis_hi = round(fis_ci[, 2], 3), row.names = NULL)
+
+# Station 5
+fst       <- as.matrix(genet.dist(rw_hfstat, method = "WC84"))
+rw_coords <- read.csv("rosewood_coords.csv", row.names = 1)
+common    <- intersect(rownames(fst), rownames(rw_coords))
+fst_m     <- fst[common, common]
+geo_m     <- as.matrix(dist(rw_coords[common, 1:2]))
+set.seed(2026)
+mt_deg <- mantel.randtest(as.dist(fst_m), as.dist(geo_m), nrepet = 999)
+
+options(adegenet.testcon = textConnection("5"))
+set.seed(2026)
+grp <- find.clusters(rosewood, max.n.clust = 20, n.pca = 150)
+options(adegenet.testcon = stdin())
+
+tab     <- table(pop(rosewood), grp$grp)
+rw_dapc <- dapc(rosewood, grp$grp, n.pca = 50, n.da = 4)
+rw_pops <- pop(rosewood)
+qpop    <- t(sapply(levels(rw_pops),
+                    function(p) colMeans(as.data.frame(rw_dapc$posterior)[rw_pops == p, , drop = FALSE])))
+qpop    <- qpop[rownames(rw_coords), ]
+set.seed(2026)
+grp3 <- find.clusters(rosewood, max.n.clust = 20, n.pca = 150, n.clust = 3, choose.n.clust = FALSE)
+set.seed(2026)
+grp7 <- find.clusters(rosewood, max.n.clust = 20, n.pca = 150, n.clust = 7, choose.n.clust = FALSE)
+bic  <- data.frame(K = seq_along(grp$Kstat), BIC = as.numeric(grp$Kstat))
+```
+
+# Checks against the handout
+
+## Station 1
+
+```{r check-s1}
+ns <- table(pop(rosewood))
+check("1.2", "individuals", nInd(rosewood), 523)
+check("1.2", "loci", nLoc(rosewood), 9)
+check("1.2", "populations", nPop(rosewood), 26)
+check("1.2", "smallest population", names(ns)[which.min(ns)], "ANG")
+check("1.2", "smallest n", min(ns), 4)
+check("1.2", "largest population", names(ns)[which.max(ns)], "PY")
+check("1.2", "largest n", max(ns), 33)
+
+check("1.3", "median genotypes, 1 locus", median(gac[, 1]), 60)
+check("1.3", "median genotypes, 8 loci", median(gac[, ncol(gac)]), 520)
+check("1.3", "distinct genotypes, all 9 loci", mlg(rosewood, quiet = TRUE), 523)
+
+ev <- setNames(rw_lt[rownames(rw_lt) != "mean", "Evenness"], rownames(rw_lt)[rownames(rw_lt) != "mean"])
+al <- rw_lt[rownames(rw_lt) != "mean", "allele"]
+check("1.4", "fewest alleles at a locus", min(al), 11)
+check("1.4", "most alleles at a locus", max(al), 17)
+check("1.4", "most even locus", names(which.max(ev)), "VIC COC-01")
+check("1.4", "highest evenness", round(max(ev), 2), 0.80)
+check("1.4", "least even locus", names(which.min(ev)), "NED COC-18")
+check("1.4", "lowest evenness", round(min(ev), 2), 0.44)
+
+by_locus <- mt[nrow(mt), -ncol(mt)]          # Total row, without the Mean column
+by_pop   <- mt[-nrow(mt), ncol(mt)]          # Mean column, without the Total row
+check("1.5", "worst locus", names(which.max(by_locus)), "NED COC-10")
+check("1.5", "worst locus, proportion missing", round(max(by_locus), 3), 0.040, tol = 0.001)
+check("1.5", "worst population", names(which.max(by_pop)), "DNT")
+check("1.5", "worst population, proportion missing", round(max(by_pop), 3), 0.037, tol = 0.001)
+check("1.5", "overall missing below 1%", mt[nrow(mt), ncol(mt)] < 0.01, TRUE)
+
+check("1.6", "MLG equals N in every population", all(pp$MLG == pp$N), TRUE)
+hx <- hexp[names(hexp) != "Total"]
+check("1.6", "lowest Hexp population", names(which.min(hx)), "TXA")
+check("1.6", "lowest Hexp", round(min(hx), 2), 0.36)
+check("1.6", "highest Hexp population", names(which.max(hx)), "POS")
+check("1.6", "highest Hexp", round(max(hx), 2), 0.77)
+```
+
+## Station 2
+
+```{r check-s2}
+by_loc <- rowSums(rw_hwe_mat < 0.05, na.rm = TRUE)
+check("2.4", "number of tests", sum(!is.na(rw_hwe_mat)), 234)
+check("2.4", "significant before correction", sum(rw_hwe_mat < 0.05, na.rm = TRUE), 28)
+check("2.4", "expected by chance", round(0.05 * sum(!is.na(rw_hwe_mat))), 12)
+check("2.4", "significant after BH", sum(hwe_fdr < 0.05, na.rm = TRUE), 3)
+check("2.4", "locus failing most often", names(which.max(by_loc)), "NED COC-10")
+check("2.4", "populations where it fails", max(by_loc), 9)
+check("2.4", "most significant loci in one population",
+      max(colSums(rw_hwe_mat < 0.05, na.rm = TRUE)), 2)
+```
+
+## Station 3
+
+```{r check-s3}
+top <- rw_pair[order(-rw_pair[, "rbarD"]), ]
+check("3.1", "IA", round(ia_all[["Ia"]], 3), 1.093, tol = 0.001)
+check("3.1", "rbarD", round(ia_all[["rbarD"]], 3), 0.137, tol = 0.001)
+check("3.1", "p (rbarD)", ia_all[["p.rD"]], 0.005)
+check("3.2", "IA in PY", round(ia_py[["Ia"]], 3), 0.221, tol = 0.001)
+check("3.2", "rbarD in PY", round(ia_py[["rbarD"]], 3), 0.030, tol = 0.001)
+check("3.2", "p (rbarD) in PY", ia_py[["p.rD"]], 0.05)
+check("3.3", "number of pairs", nrow(rw_pair), 36)
+check("3.3", "strongest pair", rownames(top)[1], "6-FAM COC-06:PET COC-07")
+check("3.3", "strongest rbarD", round(top[1, "rbarD"], 3), 0.257, tol = 0.001)
+check("3.3", "second strongest rbarD", round(top[2, "rbarD"], 3), 0.255, tol = 0.001)
+check("3.3", "third strongest below 0.22", top[3, "rbarD"] < 0.22, TRUE)
+```
+
+## Station 4
+
+```{r check-s4}
+sf <- summary(fit)
+check("4.1", "most alleles", names(which.max(rw_sum$pop.n.all)), "POS")
+check("4.1", "most alleles, count", max(rw_sum$pop.n.all), 66)
+check("4.1", "fewest alleles", names(which.min(rw_sum$pop.n.all)), "TXA")
+check("4.1", "fewest alleles, count", min(rw_sum$pop.n.all), 20)
+
+check("4.2", "slope", round(coef(fit)[["n"]], 2), 0.53, tol = 0.005)
+check("4.2", "P-value", round(sf$coefficients["n", 4], 3), 0.115, tol = 0.001)
+check("4.2", "adjusted R2", round(sf$adj.r.squared, 3), 0.063, tol = 0.001)
+check("4.2", "correlation", cor(d$n, d$alleles), 0.317, tol = 0.0015)
+
+raw_rank  <- setNames(rank(-d$alleles,  ties.method = "min"), d$pop)
+rare_rank <- setNames(rank(-d$richness, ties.method = "min"), d$pop)
+check("4.4", "common sample size (gene copies)", rw_ar$min.all, 8)
+check("4.4", "correlation after rarefaction", round(cor(d$n, d$richness), 3), -0.043, tol = 0.001)
+check("4.4", "ANG rank on raw counts", raw_rank[["ANG"]], 20)
+check("4.4", "ANG rank after rarefaction", rare_rank[["ANG"]], 13)
+check("4.4", "ANG rarefied richness", round(rw_pop_ar[["ANG"]], 2), 3.22, tol = 0.005)
+check("4.4", "PY rank after rarefaction", rare_rank[["PY"]], 16)
+check("4.4", "PY rarefied richness", round(rw_pop_ar[["PY"]], 2), 2.64, tol = 0.005)
+
+check("4.5", "mean Ho", round(mean(rw_pop_ho), 3), 0.562, tol = 0.001)
+check("4.5", "mean He within populations", mean(rw_pop_hs), 0.569, tol = 0.0015)
+check("4.5", "mean FIS", round(mean(rw_pop_fis), 3), 0.020, tol = 0.001)
+check("4.5", "Ht (He pooled)", round(rw_pop_stat$overall[["Ht"]], 3), 0.754, tol = 0.001)
+check("4.5", "overall FST", round(rw_pop_stat$overall[["Fst"]], 3), 0.247, tol = 0.001)
+check("4.5", "poppr Hexp matches hierfstat Hs (largest gap < 0.01)",
+      max(abs(hx[names(rw_pop_hs)] - rw_pop_hs)) < 0.01, TRUE)
+
+ci_width <- setNames(rw_table$Fis_hi - rw_table$Fis_lo, rw_table$pop)
+check("4.7", "rows", nrow(rw_table), 26)
+check("4.7", "populations with Ho < He", sum(rw_table$Ho < rw_table$He), 13)
+check("4.7", "intervals entirely above 0", sum(rw_table$Fis_lo > 0), 0)
+check("4.7", "intervals entirely below 0", sum(rw_table$Fis_hi < 0), 0)
+check("4.7", "widest interval", names(which.max(ci_width)), "ANG")
+check("4.7", "widest interval width", round(max(ci_width), 2), 0.64, tol = 0.01)
+check("4.7", "narrowest interval", names(which.min(ci_width)), "POS")
+check("4.7", "narrowest interval width", round(min(ci_width), 2), 0.09, tol = 0.01)
+check("4.7", "top three by richness",
+      paste(rw_table$pop[order(-rw_table$richness)][1:3], collapse = " "), "POS PYA RO")
+check("4.7", "bottom three by richness",
+      paste(rw_table$pop[order(rw_table$richness)][1:3], collapse = " "), "TXA TAL NIA")
+check("4.7", "POS richness", rw_table$richness[rw_table$pop == "POS"], 4.15, tol = 0.005)
+check("4.7", "POS n", rw_table$n[rw_table$pop == "POS"], 28)
+check("4.7", "POS FIS interval", c(rw_table$Fis_lo[rw_table$pop == "POS"],
+      rw_table$Fis_hi[rw_table$pop == "POS"]), c(-0.073, 0.018), tol = 0.001)
+check("4.7", "ANG FIS interval", c(rw_table$Fis_lo[rw_table$pop == "ANG"],
+      rw_table$Fis_hi[rw_table$pop == "ANG"]), c(-0.313, 0.329), tol = 0.001)
+
+nia <- rw_table[rw_table$pop == "NIA", ]
+check("4.8", "NIA Ho", nia$Ho, 0.394, tol = 0.001)
+check("4.8", "NIA He", nia$He, 0.442, tol = 0.001)
+check("4.8", "NIA FIS", nia$Fis, 0.128, tol = 0.001)
+check("4.8", "NIA interval", c(nia$Fis_lo, nia$Fis_hi), c(-0.060, 0.357), tol = 0.001)
+```
+
+## Station 5
+
+```{r check-s5}
+pairs <- fst[lower.tri(fst)]
+wi <- which(fst == max(pairs), arr.ind = TRUE)[1, ]
+check("5.1", "number of pairs", length(pairs), 325)
+check("5.1", "mean pairwise FST", round(mean(pairs), 3), 0.247, tol = 0.001)
+check("5.1", "minimum", round(min(pairs), 3), -0.004, tol = 0.001)
+check("5.1", "maximum", round(max(pairs), 3), 0.449, tol = 0.001)
+check("5.1", "most different pair",
+      paste(sort(c(rownames(fst)[wi[1]], colnames(fst)[wi[2]])), collapse = " "), "DNT TXA")
+
+check("5.2", "populations matched", length(common), 26)
+check("5.2", "Mantel observation", round(mt_deg$obs, 3), 0.880, tol = 0.001)
+check("5.2", "Mantel P-value", mt_deg$pvalue, 0.001)
+
+check("5.3", "cluster sizes", as.numeric(grp$size), c(101, 111, 119, 54, 138))
+check("5.3", "BIC values for K = 1 to 20", length(grp$Kstat), 20)
+
+single <- rownames(tab)[rowSums(tab > 0) == 1]
+check("5.4", "populations in one cluster", length(single), 13)
+check("5.4", "which ones", paste(single, collapse = " "),
+      "BAN CMR DNT DP KIR KRA PYA RO RUK SK SPEU TAL YOD")
+check("5.4", "populations in more than one", sum(rowSums(tab > 0) > 1), 13)
+check("5.4", "PK split", as.numeric(tab["PK", c(1, 5)]), c(12, 17))
+check("5.4", "PY split", as.numeric(tab["PY", c(1, 5)]), c(17, 15))
+
+s5 <- summary(rw_dapc)
+check("5.6", "trees reassigned to their own cluster", round(s5$assign.prop, 3), 0.979, tol = 0.001)
+
+check("5.7", "tables in the same order", identical(rownames(qpop), rownames(rw_coords)), TRUE)
+check("5.7", "row sums are 1", all(abs(rowSums(qpop) - 1) < 1e-9), TRUE)
+check("5.7", "PK membership", round(qpop["PK", c(1, 5)], 3), c(0.416, 0.584), tol = 0.001)
+check("5.7", "PY membership", round(qpop["PY", c(1, 5)], 3), c(0.508, 0.462), tol = 0.001)
+check("5.7", "ANG membership", round(qpop["ANG", c(2, 3)], 3), c(0.540, 0.460), tol = 0.001)
+check("5.7", "single-cluster populations at 1.000",
+      all(round(apply(qpop[c("PYA", "TAL", "CMR", "YOD"), ], 1, max), 3) == 1), TRUE)
+
+t3 <- table(grp$grp, grp3$grp); t7 <- table(grp$grp, grp7$grp)
+check("5.8", "cluster 3 kept whole at K = 3", max(t3[3, ]), 119)
+check("5.8", "cluster 4 kept whole at K = 3", max(t3[4, ]), 54)
+check("5.8", "cluster 3 mostly whole at K = 7", max(t7[3, ]), 115)
+check("5.8", "clusters 1 and 5 merge at K = 3",
+      which.max(t3[1, ]) == which.max(t3[5, ]), TRUE)
+```
+
+## Summary
+
+```{r check-summary}
+table(.checks$result)
+.checks[.checks$result == "FAIL", ]
+```
+
+A `FAIL` most often means a different package version. Compare yours with the versions
+listed at the top.
+
+# Teaching figures
+
+```{r fig-setup}
+ACC <- "#1D6B56"; C1 <- "#2E7D6B"; C2 <- "#BF6340"; C3 <- "#64799F"
+ALERT <- "#9C3B2C"; GREY <- "#D7DDD7"; INK <- "#1A201C"; SOFT <- "#5A655E"
+fig <- function(f, w = 9, h = 5) png(file.path("figures", f), width = w, height = h,
+                                     units = "in", res = 160, bg = "white")
+```
+
+## The Wahlund effect (task 2.1, slide 6)
+
+A worked example with round numbers, not the rosewood data.
+
+```{r fig-wahlund, results = "hide"}
+fig("fig_wahlund.png", 9, 5.4)
+layout(matrix(1:2, 2, 1), heights = c(1.25, 1))
+par(mar = c(1.2, 1, 3.2, 1), family = "sans")
+plot(0, type = "n", xlim = c(0, 100), ylim = c(0, 34), axes = FALSE, xlab = "", ylab = "")
+title("Each subpopulation is in HWE. Pooling them is not.", adj = 0, cex.main = 1.25, col.main = INK)
+bar <- function(x0, p, lab, ho) {
+  w <- 26
+  rect(x0, 16, x0 + w * p, 26, col = C1, border = NA)
+  rect(x0 + w * p, 16, x0 + w, 26, col = C2, border = NA)
+  text(x0, 29.5, lab, adj = 0, cex = 0.95, font = 2, col = SOFT)
+  text(x0, 12.5, sprintf("p = %.2f", p), adj = 0, cex = 0.95, col = SOFT)
+  text(x0, 7.5, ho, adj = 0, cex = 0.95, col = INK)
+}
+bar(2,  0.90, "SUBPOPULATION A", "Ho = He = 0.18")
+text(31.5, 21, "+", cex = 1.8, col = SOFT)
+bar(36, 0.10, "SUBPOPULATION B", "Ho = He = 0.18")
+text(65.5, 21, "=", cex = 1.8, col = SOFT)
+bar(70, 0.50, "POOLED SAMPLE", "He = 0.50, but")
+text(83.6, 7.5, "Ho still 0.18", adj = 0, cex = 0.95, col = ALERT, font = 2)
+par(mar = c(3.6, 1, 2.6, 1))
+plot(0, type = "n", xlim = c(0, 0.6), ylim = c(0, 10), axes = FALSE, xlab = "", ylab = "")
+title("Expected heterozygosity (He) at two levels", adj = 0, cex.main = 1.05, col.main = INK)
+axis(1, at = seq(0, 0.6, 0.1), col = SOFT, col.axis = SOFT, cex.axis = 0.9)
+segments(0.18, 2.5, 0.18, 4.4, col = INK); points(0.18, 4.8, pch = 19, cex = 1.9, col = C2)
+text(0.18, 6.6, "He within populations = 0.18", cex = 0.95, col = INK)
+segments(0.50, 2.5, 0.50, 4.4, col = INK); points(0.50, 4.8, pch = 19, cex = 1.9, col = C3)
+text(0.50, 6.6, "He pooled = 0.50", cex = 0.95, col = INK)
+arrows(0.18, 3.4, 0.50, 3.4, code = 3, length = 0.06, col = ACC, lwd = 2)
+text(0.34, 1.4, "the gap is the Wahlund effect:  FST = (0.50 - 0.18) / 0.50 = 0.64",
+     cex = 0.95, col = ACC, font = 2)
+dev.off()
+```
+
+```{r fig-wahlund-show, echo = FALSE, out.width = "80%"}
+knitr::include_graphics("figures/fig_wahlund.png")
+```
+
+## Linkage disequilibrium: two causes (slide 7)
+
+Slide 7 only; it is not on the Notion page. Schematic, not rosewood data.
+
+```{r fig-ld, results = "hide"}
+hap <- function(x0, y, l1, l2, col, gap = 11, cx = 2.4) {
+  segments(x0, y, x0 + gap, y, col = col, lwd = 2.2)
+  points(c(x0, x0 + gap), c(y, y), pch = 21, cex = cx, bg = col, col = "white", lwd = 1.5)
+  text(c(x0, x0 + gap), c(y, y), c(l1, l2), col = "white", cex = 0.68, font = 2)
+}
+
+fig("fig_ld.png", 9, 5.4)
+layout(matrix(1:2, 1, 2), widths = c(1, 1.15))
+
+par(mar = c(0.6, 1.2, 3.4, 1.2), family = "sans")
+plot(0, type = "n", xlim = c(0, 100), ylim = c(0, 100), axes = FALSE, xlab = "", ylab = "")
+title("Cause 1: the loci really are linked", adj = 0, cex.main = 1.12, col.main = INK)
+segments(c(40, 58), 71, c(40, 58), 78, col = SOFT, lwd = 1, lty = 3)
+arrows(40, 78, 58, 78, code = 3, length = 0.05, col = SOFT, lwd = 1.4)
+text(49, 85, "close together", cex = 0.88, col = SOFT)
+for (i in 1:2) {
+  y <- c(66, 46)[i]
+  rect(6, y - 5, 94, y + 5, col = GREY, border = NA)
+  hap(40, y, c("A", "a")[i], c("B", "b")[i], c(C1, C2)[i], gap = 18, cx = 2.8)
+}
+text(50, 27, "Recombination rarely splits them,\nso A stays with B and a stays with b.",
+     cex = 0.92, col = INK)
+text(50, 7, "Real linkage", cex = 1.0, col = ACC, font = 2)
+
+par(mar = c(0.6, 1.2, 3.4, 1.2))
+plot(0, type = "n", xlim = c(0, 100), ylim = c(0, 100), axes = FALSE, xlab = "", ylab = "")
+title("Cause 2: you pooled two populations", adj = 0, cex.main = 1.12, col.main = INK)
+text(c(13, 46, 80), 92, c("POPULATION 1", "POPULATION 2", "POOLED SAMPLE"),
+     cex = 0.74, font = 2, col = SOFT)
+ys4 <- c(78, 68, 58, 48)
+for (y in ys4) hap(7,  y, "A", "B", C1)
+for (y in ys4) hap(40, y, "a", "b", C2)
+text(31, 63, "+", cex = 1.5, col = SOFT)
+text(64, 63, "=", cex = 1.5, col = SOFT)
+ys8 <- seq(82, 44, length.out = 8)
+for (i in seq_along(ys8)) {
+  if (i %% 2 == 1) hap(74, ys8[i], "A", "B", C1) else hap(74, ys8[i], "a", "b", C2)
+}
+text(50, 27, "Each population is fine on its own. Pooled, A still\nturns up with B, even on different chromosomes.",
+     cex = 0.88, col = INK)
+text(50, 7, "False linkage, from pooling", cex = 1.0, col = ALERT, font = 2)
+dev.off()
+```
+
+The two rbarD values quoted on the slide come from tasks 3.1 and 3.2, checked above.
+
+```{r fig-ld-show, echo = FALSE, out.width = "80%"}
+knitr::include_graphics("figures/fig_ld.png")
+```
+
+## Allele accumulation, PY vs ANG (task 4.4, slide 8)
+
+```{r fig-accumulation, results = "hide"}
+accum <- function(gid, popname, nreps = 300) {
+  sub  <- popsub(gid, popname)
+  n    <- nInd(sub)
+  tabm <- tab(sub)
+  out  <- numeric(n)
+  for (k in seq_len(n)) {
+    out[k] <- mean(replicate(nreps, {
+      idx <- sample(n, k)
+      sum(colSums(tabm[idx, , drop = FALSE], na.rm = TRUE) > 0)
+    }))
+  }
+  data.frame(pop = popname, k = seq_len(n), alleles = out)
+}
+set.seed(2026)
+big <- accum(rosewood, "PY"); sml <- accum(rosewood, "ANG")
+a4b <- big$alleles[big$k == 4]; a4s <- sml$alleles[sml$k == 4]; full <- big$alleles[big$k == 33]
+
+fig("fig_accumulation.png", 9, 5.2)
+par(mar = c(4.4, 4.6, 3.4, 1.4), family = "sans", col.axis = SOFT, col.lab = SOFT)
+plot(0, type = "n", xlim = c(0, 34), ylim = c(0, 45), xlab = "Trees sampled",
+     ylab = "Distinct alleles, summed over 9 loci", axes = FALSE)
+abline(h = seq(0, 45, 15), col = GREY)
+axis(1, col = SOFT); axis(2, las = 1, col = SOFT)
+title("Comparing at equal effort reverses the ranking", adj = 0, cex.main = 1.25, col.main = INK)
+segments(4, 0, 4, a4s + 3, lty = 2, col = INK)
+segments(0, a4b, 4, a4b, lty = 3, col = SOFT); segments(0, a4s, 4, a4s, lty = 3, col = SOFT)
+lines(big$k, big$alleles, col = C1, lwd = 3)
+lines(sml$k, sml$alleles, col = C2, lwd = 3)
+points(c(4, 4, 33), c(a4b, a4s, full), pch = 19, cex = 1.5, col = c(C1, C2, C1))
+text(4.8, a4s + 1.6, sprintf("ANG: %.0f alleles from its 4 trees", a4s), adj = 0, cex = 0.95, col = C2, font = 2)
+text(4.8, a4b - 2.4, sprintf("PY at the same effort: only %.1f", a4b), adj = 0, cex = 0.95, col = C1, font = 2)
+text(32.4, full - 7.5, sprintf("PY using all 33 trees: %.0f", full), adj = 1, cex = 0.95, col = C1)
+text(4, 2.2, "common sample size", adj = -0.05, cex = 0.9, col = ACC, font = 2)
+legend("bottomright", legend = c("PY  (33 trees sampled)", "ANG (only 4 trees sampled)"),
+       col = c(C1, C2), lwd = 3, bty = "n", cex = 0.95, text.col = INK)
+dev.off()
+```
+
+```{r fig-accumulation-checks}
+check("fig", "PY alleles at 4 trees", round(a4b, 1), 23.7, tol = 0.05)
+check("fig", "ANG alleles at 4 trees", a4s, 29)
+check("fig", "PY alleles at 33 trees", full, 41)
+```
+
+```{r fig-accumulation-show, echo = FALSE, out.width = "80%"}
+knitr::include_graphics("figures/fig_accumulation.png")
+```
+
+## FIS intervals for all 26 populations (task 4.6)
+
+```{r fig-fis, results = "hide"}
+fi <- rw_table[order(rw_table$Fis), ]
+fig("fig_fis.png", 9, 6.4)
+par(mar = c(4.4, 5.4, 3.4, 1.4), family = "sans", col.axis = SOFT, col.lab = SOFT)
+plot(0, type = "n", xlim = c(-0.36, 0.46), ylim = c(0.4, 26.6), axes = FALSE, xlab = "", ylab = "")
+abline(v = 0, lty = 2, col = INK)
+cols <- ifelse(fi$n <= 6, C2, C3)
+for (i in seq_len(nrow(fi))) {
+  segments(fi$Fis_lo[i], i, fi$Fis_hi[i], i, col = cols[i], lwd = 2.4)
+  points(fi$Fis[i], i, pch = 19, cex = 0.9, col = cols[i])
+}
+axis(1, at = seq(-0.3, 0.4, 0.1), labels = sprintf("%.1f", seq(-0.3, 0.4, 0.1)), col = SOFT)
+axis(2, at = seq_len(nrow(fi)), labels = sprintf("%s (%d)", fi$pop, fi$n),
+     las = 1, tick = FALSE, cex.axis = 0.78, line = -0.6)
+mtext("FIS with 95% bootstrap confidence interval   (population, n)", side = 1, line = 2.8,
+      cex = 0.95, col = SOFT)
+title("All 26 intervals include zero - but read the widths, not the verdict",
+      adj = 0, cex.main = 1.18, col.main = INK)
+legend("bottomright", legend = c("n <= 6 trees", "n > 6 trees"), col = c(C2, C3),
+       lwd = 2.4, bty = "n", cex = 0.9, text.col = INK)
+dev.off()
+```
+
+```{r fig-fis-show, echo = FALSE, out.width = "80%"}
+knitr::include_graphics("figures/fig_fis.png")
+```
+
+## FST against distance, coloured by cluster (task 5.2)
+
+```{r fig-ibd, results = "hide"}
+hav <- function(lon1, lat1, lon2, lat2) {          # great-circle distance in km
+  p <- pi / 180
+  a <- sin((lat2 - lat1) * p / 2)^2 +
+       cos(lat1 * p) * cos(lat2 * p) * sin((lon2 - lon1) * p / 2)^2
+  2 * 6371 * asin(pmin(1, sqrt(a)))
+}
+km_m <- outer(seq_along(common), seq_along(common), Vectorize(function(i, j)
+  hav(rw_coords[common[i], 1], rw_coords[common[i], 2],
+      rw_coords[common[j], 1], rw_coords[common[j], 2])))
+dimnames(km_m) <- list(common, common)
+
+domclust <- apply(qpop, 1, which.max)
+ij  <- which(lower.tri(fst_m), arr.ind = TRUE)
+ibd <- data.frame(pop_a = rownames(fst_m)[ij[, 1]], pop_b = colnames(fst_m)[ij[, 2]],
+                  fst = fst_m[lower.tri(fst_m)], km = km_m[lower.tri(km_m)])
+ibd$same <- domclust[ibd$pop_a] == domclust[ibd$pop_b]
+
+fig("fig_ibd.png", 9, 5.2)
+par(mar = c(4.4, 4.8, 3.4, 1.4), family = "sans", col.axis = SOFT, col.lab = SOFT)
+plot(0, type = "n", xlim = c(0, 870), ylim = c(-0.05, 0.50), axes = FALSE,
+     xlab = "Geographic distance between the pair (km)", ylab = "Pairwise FST")
+abline(h = seq(0, 0.5, 0.1), col = GREY)
+axis(1, col = SOFT); axis(2, las = 1, col = SOFT)
+abline(lm(fst ~ km, data = ibd), col = ALERT, lwd = 2.6)
+points(ibd$km[!ibd$same], ibd$fst[!ibd$same], pch = 19, cex = 0.72, col = adjustcolor(C3, 0.5))
+points(ibd$km[ibd$same],  ibd$fst[ibd$same],  pch = 19, cex = 0.8,  col = adjustcolor(C1, 0.85))
+title("325 population pairs: distance matters, but it is not the whole story",
+      adj = 0, cex.main = 1.18, col.main = INK)
+text(470, 0.035, sprintf("Mantel r = %.2f, p = %.3f", mt_deg$obs, mt_deg$pvalue),
+     col = ACC, font = 2, cex = 0.98, adj = 0)
+legend("topleft", legend = c(sprintf("same cluster (%d pairs)", sum(ibd$same)),
+                             sprintf("different clusters (%d pairs)", sum(!ibd$same))),
+       pch = 19, col = c(C1, C3), bty = "n", cex = 0.92, text.col = INK)
+dev.off()
+```
+
+```{r fig-ibd-checks}
+near <- ibd$km < 200
+check("fig", "same-cluster pairs", sum(ibd$same), 60)
+check("fig", "pairs within 200 km", sum(near), 67)
+check("fig", "of those, in different clusters", sum(near & !ibd$same), 10)
+check("fig", "maximum distance (km)", round(max(ibd$km)), 847)
+check("fig", "FST per 100 km", round(coef(lm(fst ~ km, data = ibd))[2] * 100, 2), 0.04, tol = 0.005)
+```
+
+```{r fig-ibd-show, echo = FALSE, out.width = "80%"}
+knitr::include_graphics("figures/fig_ibd.png")
+```
+
+## The BIC curve (task 5.3)
+
+```{r fig-bic, results = "hide"}
+fig("fig_bic.png", 9, 5.2)
+par(mar = c(4.4, 4.8, 3.4, 1.4), family = "sans", col.axis = SOFT, col.lab = SOFT)
+plot(bic$K, bic$BIC, type = "n", xlab = "Number of clusters, K", ylab = "BIC", axes = FALSE)
+abline(h = pretty(bic$BIC), col = GREY)
+axis(1, at = seq(1, 20, 2), col = SOFT); axis(2, las = 1, col = SOFT)
+lines(bic$K, bic$BIC, col = ACC, lwd = 2.6); points(bic$K, bic$BIC, pch = 19, cex = 0.9, col = ACC)
+title("The curve keeps falling: there is no obvious number of clusters",
+      adj = 0, cex.main = 1.18, col.main = INK)
+y5 <- bic$BIC[bic$K == 5]
+points(5, y5, pch = 21, cex = 2.4, lwd = 2.6, col = ALERT, bg = "white")
+text(5.6, y5 + 26, "we use K = 5", col = ALERT, font = 2, cex = 1, adj = 0)
+arrows(7.4, 700, 2.9, 652, length = 0.08, col = SOFT, lwd = 1.4)
+text(7.6, 704, "most of the drop happens here", col = SOFT, cex = 0.92, adj = 0)
+text(13, 600, "after about K = 7, each extra cluster\nbuys only a few BIC units",
+     col = SOFT, cex = 0.92, adj = 0)
+dev.off()
+```
+
+```{r fig-bic-checks}
+check("fig", "BIC at K = 1", round(bic$BIC[1], 1), 747.5, tol = 0.05)
+check("fig", "BIC at K = 5", round(bic$BIC[5], 1), 607.5, tol = 0.05)
+check("fig", "largest BIC drop after K = 7", round(max(-diff(bic$BIC)[7:19]), 1), 5.5, tol = 0.05)
+```
+
+```{r fig-bic-show, echo = FALSE, out.width = "80%"}
+knitr::include_graphics("figures/fig_bic.png")
+```
+
+## How the Mantel test works (task 5.2)
+
+The null distribution is built by hand here, so the figure shows exactly what is
+shuffled: which population sits at which location.
+
+```{r fig-mantel, results = "hide"}
+lt   <- lower.tri(fst_m)
+obs  <- cor(fst_m[lt], geo_m[lt])
+set.seed(2026)
+sims <- replicate(999, {
+  i <- sample(nrow(geo_m))
+  cor(fst_m[lt], geo_m[i, i][lt])
+})
+
+fig("fig_mantel.png", 9, 4.6)
+layout(matrix(1:2, 1, 2), widths = c(1, 1.35))
+par(mar = c(3.4, 1, 3.4, 1), family = "sans")
+plot(0, type = "n", xlim = c(-1.35, 1.35), ylim = c(-1.35, 1.35),
+     axes = FALSE, xlab = "", ylab = "", asp = 1)
+title("One population sits in 25 pairs", adj = 0, cex.main = 1.05, col.main = INK)
+th <- seq(0, 2 * pi, length.out = 27)[1:26]
+px <- cos(th); py <- sin(th)
+for (i in 2:26) segments(px[1], py[1], px[i], py[i], col = adjustcolor(C3, 0.45), lwd = 1)
+points(px, py, pch = 19, cex = 1.25, col = C3)
+points(px[1], py[1], pch = 19, cex = 2.1, col = C2)
+mtext("26 populations, 325 pairs. Move one population and\n25 of those points move with it.",
+      side = 1, line = 1.6, cex = 0.82, col = SOFT)
+par(mar = c(4.4, 4.4, 3.4, 1.4), col.axis = SOFT, col.lab = SOFT)
+h <- hist(sims, breaks = 30, plot = FALSE)
+plot(h, col = GREY, border = "white", xlim = c(-0.55, 1.0), main = "",
+     xlab = "Correlation between the two matrices", ylab = "Shuffles", axes = FALSE)
+axis(1, col = SOFT); axis(2, las = 1, col = SOFT)
+title("999 shuffles vs what we actually observed", adj = 0, cex.main = 1.05, col.main = INK)
+abline(v = obs, col = ALERT, lwd = 3)
+text(obs - 0.04, max(h$counts) * 0.95, sprintf("observed\nr = %.2f", obs),
+     col = ALERT, font = 2, cex = 0.95, adj = 1)
+text(mean(sims), max(h$counts) * 0.62,
+     "what you get when\nlocations are shuffled\nat random", col = SOFT, cex = 0.88)
+dev.off()
+```
+
+```{r fig-mantel-checks}
+check("fig", "hand-built Mantel statistic", round(obs, 3), 0.880, tol = 0.001)
+check("fig", "shuffles reaching the real value", sum(sims >= obs), 0)
+check("fig", "highest shuffle below 0.25", max(sims) < 0.25, TRUE)
+```
+
+```{r fig-mantel-show, echo = FALSE, out.width = "80%"}
+knitr::include_graphics("figures/fig_mantel.png")
+```
+
+# Final tally
+
+```{r final-tally}
+table(.checks$result)
+.checks[.checks$result == "FAIL", ]
+```
+
+```{r session-info}
+sessionInfo()
+```
