@@ -1,11 +1,15 @@
-# written when the documents are knitted
-outputs/
-figures/
+# The documents render to .md so they can be read on GitHub, which means the
+# figures they produce are committed alongside them. Only the throwaway bits
+# are ignored.
+
+# knitted HTML, if anyone renders to it
 *.html
-*_files/
-*_cache/
+
+# the data table students write in task 4.7
+outputs/*.csv
 
 # R / RStudio
+*_cache/
 .Rproj.user/
 .Rhistory
 .RData

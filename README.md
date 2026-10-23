@@ -27,8 +27,15 @@ separately.
 | `rosewood_coords.csv` | Longitude and latitude of each population |
 | `rosewood_water.csv` | Rivers and lakes, for the map in Station 5 |
 
-Knitting writes `outputs/` (the files students produce) and, from the auxiliary file,
-`figures/`. Both are ignored by git.
+Both documents render to GitHub-flavoured markdown, so you can read a full worked run
+without installing anything:
+
+- **[rosewood_activity1.md](rosewood_activity1.md)** — the practical, with every output
+- **[rosewood_activity1_aux.md](rosewood_activity1_aux.md)** — the checks and the figures
+
+Those two files are generated. Edit the `.Rmd` and re-knit; do not edit the `.md` by
+hand. The figures they refer to live in `outputs/` and `figures/`, and are committed so
+the rendered pages display on GitHub.
 
 ## Requirements
 
@@ -53,6 +60,10 @@ Clone the repository, open either `.Rmd` in RStudio and click Knit. Both documen
 the CSVs by relative path, so nothing needs editing as long as the files stay in one
 folder. Running them line by line works just as well, and is closer to what students
 actually do.
+
+Keep the clone somewhere with a short path. Knitting writes figures into
+`rosewood_activity1_files/figure-gfm/`, which is long enough that a deeply nested
+folder can trip the 260-character limit on Windows.
 
 The practical takes about two minutes to knit; the auxiliary file takes longer, because
 it repeats the whole analysis before drawing anything.
