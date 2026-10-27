@@ -1,7 +1,7 @@
 Activity 1: auxiliary figures and checks
 ================
 Tin Hang Hung
-2026-10-23
+2026-10-27
 
 - [Setup](#setup)
 - [Re-run the practical](#re-run-the-practical)
@@ -339,47 +339,47 @@ check("1.6", "highest Hexp", round(max(hx), 2), 0.77)
 
 ``` r
 by_loc <- rowSums(rw_hwe_mat < 0.05, na.rm = TRUE)
-check("2.4", "number of tests", sum(!is.na(rw_hwe_mat)), 234)
+check("2.3","number of tests", sum(!is.na(rw_hwe_mat)), 234)
 ```
 
-    ## PASS  [2.4] number of tests: got 234, handout says 234
+    ## PASS  [2.3] number of tests: got 234, handout says 234
 
 ``` r
-check("2.4", "significant before correction", sum(rw_hwe_mat < 0.05, na.rm = TRUE), 28)
+check("2.3","significant before correction", sum(rw_hwe_mat < 0.05, na.rm = TRUE), 28)
 ```
 
-    ## PASS  [2.4] significant before correction: got 28, handout says 28
+    ## PASS  [2.3] significant before correction: got 28, handout says 28
 
 ``` r
-check("2.4", "expected by chance", round(0.05 * sum(!is.na(rw_hwe_mat))), 12)
+check("2.3","expected by chance", round(0.05 * sum(!is.na(rw_hwe_mat))), 12)
 ```
 
-    ## PASS  [2.4] expected by chance: got 12, handout says 12
+    ## PASS  [2.3] expected by chance: got 12, handout says 12
 
 ``` r
-check("2.4", "significant after BH", sum(hwe_fdr < 0.05, na.rm = TRUE), 3)
+check("2.3","significant after BH", sum(hwe_fdr < 0.05, na.rm = TRUE), 3)
 ```
 
-    ## PASS  [2.4] significant after BH: got 3, handout says 3
+    ## PASS  [2.3] significant after BH: got 3, handout says 3
 
 ``` r
-check("2.4", "locus failing most often", names(which.max(by_loc)), "NED COC-10")
+check("2.3","locus failing most often", names(which.max(by_loc)), "NED COC-10")
 ```
 
-    ## PASS  [2.4] locus failing most often: got NED COC-10, handout says NED COC-10
+    ## PASS  [2.3] locus failing most often: got NED COC-10, handout says NED COC-10
 
 ``` r
-check("2.4", "populations where it fails", max(by_loc), 9)
+check("2.3","populations where it fails", max(by_loc), 9)
 ```
 
-    ## PASS  [2.4] populations where it fails: got 9, handout says 9
+    ## PASS  [2.3] populations where it fails: got 9, handout says 9
 
 ``` r
-check("2.4", "most significant loci in one population",
+check("2.3","most significant loci in one population",
       max(colSums(rw_hwe_mat < 0.05, na.rm = TRUE)), 2)
 ```
 
-    ## PASS  [2.4] most significant loci in one population: got 2, handout says 2
+    ## PASS  [2.3] most significant loci in one population: got 2, handout says 2
 
 ## Station 3
 

@@ -1,12 +1,8 @@
 # The documents render to .md so they can be read on GitHub, which means the
-# figures they produce are committed alongside them. Only the throwaway bits
-# are ignored.
+# figures they produce are committed alongside them.
 
 # knitted HTML, if anyone renders to it
 *.html
-
-# the data table students write in task 4.7
-outputs/*.csv
 
 # R / RStudio
 *_cache/

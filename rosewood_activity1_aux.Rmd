@@ -187,13 +187,13 @@ check("1.6", "highest Hexp", round(max(hx), 2), 0.77)
 
 ```{r check-s2}
 by_loc <- rowSums(rw_hwe_mat < 0.05, na.rm = TRUE)
-check("2.4", "number of tests", sum(!is.na(rw_hwe_mat)), 234)
-check("2.4", "significant before correction", sum(rw_hwe_mat < 0.05, na.rm = TRUE), 28)
-check("2.4", "expected by chance", round(0.05 * sum(!is.na(rw_hwe_mat))), 12)
-check("2.4", "significant after BH", sum(hwe_fdr < 0.05, na.rm = TRUE), 3)
-check("2.4", "locus failing most often", names(which.max(by_loc)), "NED COC-10")
-check("2.4", "populations where it fails", max(by_loc), 9)
-check("2.4", "most significant loci in one population",
+check("2.3","number of tests", sum(!is.na(rw_hwe_mat)), 234)
+check("2.3","significant before correction", sum(rw_hwe_mat < 0.05, na.rm = TRUE), 28)
+check("2.3","expected by chance", round(0.05 * sum(!is.na(rw_hwe_mat))), 12)
+check("2.3","significant after BH", sum(hwe_fdr < 0.05, na.rm = TRUE), 3)
+check("2.3","locus failing most often", names(which.max(by_loc)), "NED COC-10")
+check("2.3","populations where it fails", max(by_loc), 9)
+check("2.3","most significant loci in one population",
       max(colSums(rw_hwe_mat < 0.05, na.rm = TRUE)), 2)
 ```
 

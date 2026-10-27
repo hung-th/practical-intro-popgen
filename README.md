@@ -34,8 +34,11 @@ without installing anything:
 - **[rosewood_activity1_aux.md](rosewood_activity1_aux.md)** — the checks and the figures
 
 Those two files are generated. Edit the `.Rmd` and re-knit; do not edit the `.md` by
-hand. The figures they refer to live in `outputs/` and `figures/`, and are committed so
-the rendered pages display on GitHub.
+hand. The figures they refer to are committed alongside them, so the rendered pages
+display on GitHub.
+
+The practical writes nothing to disk: every table and plot appears in the session, which
+keeps the focus on reading output rather than on file management.
 
 ## Requirements
 

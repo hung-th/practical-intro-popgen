@@ -1,7 +1,7 @@
 Activity 1: rosewood population genetics
 ================
 Tin Hang Hung
-2026-10-23
+2026-10-27
 
 - [Station 0 · Set up so someone else could repeat
   you](#station-0--set-up-so-someone-else-could-repeat-you)
@@ -25,8 +25,6 @@ Tin Hang Hung
     separately](#22-now-test-each-population-separately)
   - [2.3 Plot the P-values as a
     heatmap](#23-plot-the-p-values-as-a-heatmap)
-  - [2.4 Count the significant tests, and compare with
-    chance](#24-count-the-significant-tests-and-compare-with-chance)
 - [Station 3 · Are your 9 loci 9 independent
   markers?](#station-3--are-your-9-loci-9-independent-markers)
   - [3.1 Test for association among loci across the whole
@@ -68,19 +66,16 @@ Tin Hang Hung
     it](#57-work-out-cluster-membership-for-each-population-and-map-it)
   - [5.8 + optional · Check whether the clusters change with
     K](#58--optional--check-whether-the-clusters-change-with-k)
-  - [5.9 + optional · Look at individual
-    admixture](#59--optional--look-at-individual-admixture)
 - [Station 6 · From science to conservation
   recommendations](#station-6--from-science-to-conservation-recommendations)
-- [Reference · the catch-up block](#reference--the-catch-up-block)
 
 This file runs the practical from end to end: every code block from the
 handout, in the same order, with the same seeds. Quoted lines are the
 handout’s **Expect to see** boxes.
 
 Put `rosewood.csv`, `rosewood_coords.csv` and `rosewood_water.csv` in
-the same folder as this file, then knit. Knitting creates an `outputs/`
-folder beside it, exactly as the practical does.
+the same folder as this file, then knit. Everything plots to the
+document; nothing is written to disk.
 
 The teaching figures and the checks against these expected numbers live
 in a separate file, `rosewood_activity1_aux.Rmd`.
@@ -89,12 +84,12 @@ in a separate file, `rosewood_activity1_aux.Rmd`.
 
 ## 0.2 Run the setup script
 
-Install the packages once if you do not have them (this chunk is not run
-when knitting):
+The handout installs the packages here. That only needs doing once, so
+it is shown but not run when knitting:
 
 ``` r
 install.packages(c("poppr", "pegas", "hierfstat", "adegenet", "ade4",
-                   "lattice", "mapplots", "maps", "RColorBrewer"))
+          "lattice", "mapplots", "maps", "RColorBrewer"))
 ```
 
 ``` r
@@ -113,49 +108,25 @@ list.files()            # should list the three .csv files
     ## [5] "rosewood_water.csv"
 
 ``` r
-# ---- 2. Somewhere for figures and tables to land ----
-dir.create("outputs", showWarnings = FALSE)
+# ---- 2. Packages ----
+library(poppr)
+library(adegenet)
+library(pegas)
+library(hierfstat)
+library(ade4)
+library(lattice)
+library(maps)
+library(mapplots)
+library(RColorBrewer)
 
-# ---- 3. Packages ----
-pkgs <- c("poppr", "pegas", "hierfstat", "adegenet", "ade4",
-          "lattice", "mapplots", "maps", "RColorBrewer")
-need <- pkgs[!pkgs %in% rownames(installed.packages())]
-if (length(need)) install.packages(need)
-invisible(lapply(pkgs, library, character.only = TRUE))
-
-# ---- 4. Record exactly what you ran ----
-R.version.string
-```
-
-    ## [1] "R version 4.5.1 (2025-06-13 ucrt)"
-
-``` r
-data.frame(package = pkgs,
-           version = sapply(pkgs, function(p) as.character(packageVersion(p))))
-```
-
-<div class="kable-table">
-
-|              | package      | version |
-|:-------------|:-------------|:--------|
-| poppr        | poppr        | 2.9.8   |
-| pegas        | pegas        | 1.3     |
-| hierfstat    | hierfstat    | 0.5.11  |
-| adegenet     | adegenet     | 2.1.11  |
-| ade4         | ade4         | 1.7.23  |
-| lattice      | lattice      | 0.22.7  |
-| mapplots     | mapplots     | 1.5.3   |
-| maps         | maps         | 3.4.3   |
-| RColorBrewer | RColorBrewer | 1.1.3   |
-
-</div>
-
-``` r
-# ---- 5. One seed for the session ----
+# ---- 3. Setting a seed ----
+# Several steps today sample at random. set.seed() fixes those random numbers so
+# your results match this page. You will see this same line again before each
+# random step, so that any one task can be re-run on its own and still agree.
 set.seed(2026)
 ```
 
-> No red error messages. A table of nine packages and their versions.
+> No red error messages, and `list.files()` shows all three CSV files.
 
 # Station 1 · Know your data before you analyse it
 
@@ -213,15 +184,15 @@ locNames(rosewood)        # the 9 locus names
 ## 1.3 Are 9 loci enough? Build the genotype accumulation curve
 
 ``` r
-set.seed(2026)
+set.seed(2026)                  # sample = 1000 draws loci at random, so seed it
 gac <- genotype_curve(rosewood, sample = 1000, quiet = TRUE)
 ```
 
 ![](rosewood_activity1_files/figure-gfm/task-1-3-1.png)<!-- -->
 
-> Boxplots that rise steeply and then level off. With 1 locus, about 60
-> genotypes. With 8 loci, about 520 of the 523 trees. With all 9, every
-> tree has its own genotype.
+> Boxplots that rise steeply and then level off. The x-axis stops at 8
+> loci, because the function always leaves one out. With 1 locus, about
+> 60 genotypes. With 8 loci, about 520 of the 523 trees.
 
 ## 1.4 Look at the loci one at a time
 
@@ -370,7 +341,7 @@ poppr(rosewood)
 ## 2.1 Test HWE across the whole dataset
 
 ``` r
-set.seed(2026)
+set.seed(2026)                  # B = 1000 shuffles, so seed it
 (rw_hwe_all <- hw.test(rosewood, B = 1000))
 ```
 
@@ -391,6 +362,8 @@ set.seed(2026)
 
 ``` r
 set.seed(2026)
+# seppop() splits the data into 26 single-population objects; lapply() runs the
+# same test on each one, so you get 26 result tables in a list
 rw_hwe_pop <- lapply(seppop(rosewood), hw.test, B = 1000)
 
 # Keep only column 3 of each result: the permutation-based (exact) P-value
@@ -418,50 +391,21 @@ round(rw_hwe_mat[, 1:5], 3)
 ## 2.3 Plot the P-values as a heatmap
 
 ``` r
-png("outputs/fig_hwe_heatmap.png", width = 8, height = 5, units = "in", res = 300)
 print(levelplot(rw_hwe_mat,
       xlab = "Locus", ylab = "Population",
       main = "HWE exact-test P-values, by population and locus",
       scales = list(x = list(rot = 45, cex = 0.7), y = list(cex = 0.7)),
       at = c(0, 0.001, 0.01, 0.05, 1),
       col.regions = c("#9C3B2C", "#C9794B", "#E3C08A", "#E8EDE8")))
-dev.off()
 ```
 
-<img src="outputs/fig_hwe_heatmap.png" width="85%" />
+![](rosewood_activity1_files/figure-gfm/task-2-3-1.png)<!-- -->
 
 > Mostly pale cells, with a few dark ones. One locus has more dark cells
 > than the others.
 
-## 2.4 Count the significant tests, and compare with chance
-
-``` r
-sum(!is.na(rw_hwe_mat))                               # how many tests did you run?
-```
-
-    ## [1] 234
-
-``` r
-sum(rw_hwe_mat < 0.05, na.rm = TRUE)                  # how many came out "significant"?
-```
-
-    ## [1] 28
-
-``` r
-0.05 * sum(!is.na(rw_hwe_mat))                        # how many with no real effect at all
-```
-
-    ## [1] 11.7
-
-``` r
-hwe_fdr <- p.adjust(rw_hwe_mat, method = "BH")
-sum(hwe_fdr < 0.05, na.rm = TRUE)                     # survivors after correction
-```
-
-    ## [1] 3
-
-> 234 tests, 28 significant, about 12 expected by chance, only 3 left
-> after BH.
+Counting the significant results by locus and by population, from the
+handout’s *Think it through* box:
 
 ``` r
 sort(rowSums(rw_hwe_mat < 0.05, na.rm = TRUE), decreasing = TRUE)   # by locus
@@ -481,15 +425,16 @@ sort(colSums(rw_hwe_mat < 0.05, na.rm = TRUE), decreasing = TRUE)   # by populat
     ##   RO  RUK  UDO   PJ   PY   DP  HAP  POS   SK  TXA 
     ##    1    1    1    1    1    0    0    0    0    0
 
-> No population has more than 2 significant loci, but `NED COC-10` is
-> significant in 9 of the 26 populations.
+> No population has more than 2 significant loci. But `NED COC-10` is
+> significant in 9 of the 26 populations, three times more than any
+> other locus.
 
 # Station 3 · Are your 9 loci 9 independent markers?
 
 ## 3.1 Test for association among loci across the whole dataset
 
 ``` r
-set.seed(2026)
+set.seed(2026)                  # sample = 199 shuffles, so seed it
 ia(rosewood, sample = 199)
 ```
 
@@ -498,13 +443,13 @@ ia(rosewood, sample = 199)
     ##        Ia      p.Ia     rbarD      p.rD 
     ## 1.0929369 0.0050000 0.1374233 0.0050000
 
-> IA = 1.093 and rbarD = 0.137, both with p = 0.005.
+> rbarD = 0.137, p = 0.005 (significant).
 
 ## 3.2 Run the same test inside a single population
 
 ``` r
 set.seed(2026)
-ia(popsub(rosewood, "PY"), sample = 199)      # PY is the largest population, n = 33
+ia(popsub(rosewood, "PY"), sample = 199)      # popsub() keeps just one population; PY is the largest, n = 33
 ```
 
 ![](rosewood_activity1_files/figure-gfm/task-3-2-1.png)<!-- -->
@@ -512,7 +457,8 @@ ia(popsub(rosewood, "PY"), sample = 199)      # PY is the largest population, n 
     ##         Ia       p.Ia      rbarD       p.rD 
     ## 0.22080537 0.05000000 0.02998134 0.05000000
 
-> IA = 0.221 and rbarD = 0.030, p = 0.05.
+> rbarD = 0.030, p = 0.05 — more than four times smaller than the pooled
+> value.
 
 ## 3.3 Find the strongest pair, and read the effect size
 
@@ -570,17 +516,12 @@ rw_sum$n.by.pop            # trees sampled, per population
     ##   22   18   17   13   28   22   22   29   30   33
 
 ``` r
-png("outputs/fig_alleles_raw.png", width = 7, height = 4.5, units = "in", res = 300)
 par(mar = c(6, 4.5, 2, 1))
 barplot(sort(rw_sum$pop.n.all, decreasing = TRUE), las = 2, cex.names = 0.75,
         ylab = "Alleles counted (not corrected for sample size)")
-dev.off()
 ```
 
-    ## png 
-    ##   2
-
-<img src="outputs/fig_alleles_raw.png" width="75%" />
+![](rosewood_activity1_files/figure-gfm/task-4-1-1.png)<!-- -->
 
 > `POS` has the most alleles (66) and `TXA` the fewest (20).
 
@@ -622,14 +563,9 @@ summary(fit)
     ## Multiple R-squared:  0.1002, Adjusted R-squared:  0.06267 
     ## F-statistic: 2.671 on 1 and 24 DF,  p-value: 0.1152
 
-> Slope = 0.53 alleles per extra tree, p = 0.115, adjusted R² = 0.063.
-> The correlation is 0.317, so the relationship is not significant.
-
-``` r
-cor(d$n, d$alleles)
-```
-
-    ## [1] 0.3164828
+> A weak positive trend with a lot of scatter, and it is *not*
+> significant (p = 0.115). That does not mean sample size is harmless —
+> task 4.4 removes the bias rather than testing for it again.
 
 ## 4.3 Convert to the hierfstat format
 
@@ -711,6 +647,7 @@ rw_pop_stat$Ho[1:3, 1:4]        # a locus x population matrix, not one number pe
     ## VIC.COC.01    0.50 0.679 0.400 0.0
 
 ``` r
+# For each population, we take the means to compute a population-level Ho, Hs, and Fis
 rw_pop_ho  <- colMeans(rw_pop_stat$Ho,  na.rm = TRUE)
 rw_pop_hs  <- colMeans(rw_pop_stat$Hs,  na.rm = TRUE)
 rw_pop_fis <- colMeans(rw_pop_stat$Fis, na.rm = TRUE)
@@ -727,20 +664,19 @@ rw_pop_stat$overall
     ##    Ho    Hs    Ht   Dst   Htp  Dstp   Fst  Fstp   Fis  Dest 
     ## 0.562 0.568 0.754 0.186 0.762 0.193 0.247 0.254 0.010 0.448
 
-**Ho** is observed heterozygosity, **He** is expected heterozygosity. He
-depends on which trees you count as one population, so R gives it at two
-levels: `Hs` is He within each population, `Ht` is He for all 523 trees
-pooled. FIS = 1 − Ho / He(within), and FST = (He(pooled) − He(within)) /
-He(pooled).
+**Ho** is observed heterozygosity and **He** is expected heterozygosity.
+He depends on which trees you count as one population, so R gives it at
+two levels: `Hs` is He within each population and `Ht` is He for all 523
+trees pooled. FIS = 1 − Ho/Hs, and FST = 1 − Hs/Ht.
 
-> Mean Ho = 0.562, mean He within populations = 0.569, mean FIS = 0.020.
-> `Ht` is 0.754, much higher than He within populations, giving FST =
-> 0.247.
+> Mean Ho = 0.562, mean Hs = 0.569, mean FIS = 0.020. `Ht` is 0.754,
+> much higher than Hs, giving FST = 0.247 — the Wahlund effect in the
+> real data.
 
 ## 4.6 Bootstrap a confidence interval for FIS
 
 ``` r
-set.seed(2026)
+set.seed(2026)                  # nboot = 1000 resamples, so seed it
 fis_ci <- boot.ppfis(rw_hfstat, nboot = 1000)$fis.ci
 head(fis_ci)                       # columns: lower limit, upper limit
 ```
@@ -759,17 +695,16 @@ head(fis_ci)                       # columns: lower limit, upper limit
 </div>
 
 ``` r
-nrow(fis_ci)                       # 26 rows, one per population
-```
-
-    ## [1] 26
-
-``` r
-pop_order <- levels(factor(rw_hfstat$pop))   # the order those rows follow
+# boot.ppfis() returns 26 rows with no population names attached. This is the
+# order they follow, so you can join them to the right populations in 4.7.
+pop_order <- levels(factor(rw_hfstat$pop))
 head(pop_order)
 ```
 
     ## [1] "ANG" "BAN" "CMR" "DNT" "DP"  "HAP"
+
+> All 26 intervals include 0. ANG’s runs from −0.31 to +0.33 on 4 trees;
+> POS’s, on 28 trees, is only 0.09 wide.
 
 ## 4.7 Combine the results into one table
 
@@ -780,57 +715,51 @@ rw_table <- data.frame(
   alleles  = as.numeric(rw_sum$pop.n.all[pop_order]),
   richness = round(rw_pop_ar[pop_order],  2),
   Ho       = round(rw_pop_ho[pop_order],  3),
-  He       = round(rw_pop_hs[pop_order],  3),   # hierfstat calls this Hs
+  He       = round(rw_pop_hs[pop_order],  3),   # because this is the population-level He, hierfstat calls this Hs
   Fis      = round(rw_pop_fis[pop_order], 3),
   Fis_lo   = round(fis_ci[, 1], 3),
   Fis_hi   = round(fis_ci[, 2], 3),
   row.names = NULL
 )
 
-rw_table$deficit_supported <- rw_table$Fis_lo > 0
-rw_table$excess_supported  <- rw_table$Fis_hi < 0
-
-write.csv(rw_table, "outputs/table_diversity.csv", row.names = FALSE)
-rw_table[order(-rw_table$richness), ]
+rw_table
 ```
 
 <div class="kable-table">
 
-|  | pop | n | alleles | richness | Ho | He | Fis | Fis_lo | Fis_hi | deficit_supported | excess_supported |
-|:---|:---|---:|---:|---:|---:|---:|---:|---:|---:|:---|:---|
-| 12 | POS | 28 | 66 | 4.15 | 0.786 | 0.767 | -0.027 | -0.073 | 0.018 | FALSE | FALSE |
-| 13 | PYA | 27 | 62 | 4.01 | 0.716 | 0.729 | 0.014 | -0.040 | 0.071 | FALSE | FALSE |
-| 14 | RO | 11 | 56 | 3.97 | 0.717 | 0.690 | -0.031 | -0.149 | 0.092 | FALSE | FALSE |
-| 23 | PJ | 22 | 65 | 3.78 | 0.677 | 0.684 | 0.029 | -0.058 | 0.119 | FALSE | FALSE |
-| 15 | RUK | 15 | 49 | 3.75 | 0.688 | 0.723 | 0.048 | -0.108 | 0.205 | FALSE | FALSE |
-| 7 | KIR | 25 | 54 | 3.58 | 0.656 | 0.651 | 0.023 | -0.085 | 0.104 | FALSE | FALSE |
-| 17 | SPEU | 22 | 51 | 3.58 | 0.697 | 0.663 | -0.052 | -0.118 | 0.025 | FALSE | FALSE |
-| 16 | SK | 24 | 53 | 3.53 | 0.681 | 0.650 | -0.063 | -0.118 | 0.025 | FALSE | FALSE |
-| 11 | NOY | 26 | 50 | 3.52 | 0.654 | 0.673 | 0.028 | -0.035 | 0.107 | FALSE | FALSE |
-| 9 | KRA | 14 | 45 | 3.50 | 0.691 | 0.645 | -0.079 | -0.157 | 0.025 | FALSE | FALSE |
-| 5 | DP | 10 | 40 | 3.48 | 0.678 | 0.642 | -0.029 | -0.160 | 0.044 | FALSE | FALSE |
-| 6 | HAP | 25 | 49 | 3.38 | 0.627 | 0.636 | 0.029 | -0.033 | 0.081 | FALSE | FALSE |
-| 1 | ANG | 4 | 29 | 3.22 | 0.722 | 0.704 | -0.049 | -0.313 | 0.329 | FALSE | FALSE |
-| 4 | DNT | 6 | 31 | 3.05 | 0.441 | 0.509 | 0.184 | -0.071 | 0.389 | FALSE | FALSE |
-| 3 | CMR | 6 | 28 | 2.73 | 0.526 | 0.509 | 0.011 | -0.175 | 0.137 | FALSE | FALSE |
-| 26 | PY | 33 | 41 | 2.64 | 0.454 | 0.484 | 0.041 | -0.102 | 0.269 | FALSE | FALSE |
-| 22 | YOD | 22 | 34 | 2.62 | 0.470 | 0.510 | 0.060 | -0.125 | 0.269 | FALSE | FALSE |
-| 25 | PW | 30 | 41 | 2.61 | 0.435 | 0.485 | 0.108 | -0.055 | 0.280 | FALSE | FALSE |
-| 24 | PK | 29 | 33 | 2.50 | 0.415 | 0.485 | 0.118 | -0.023 | 0.319 | FALSE | FALSE |
-| 21 | UDO | 28 | 30 | 2.36 | 0.405 | 0.443 | 0.063 | -0.022 | 0.193 | FALSE | FALSE |
-| 18 | TAI | 18 | 28 | 2.33 | 0.463 | 0.445 | -0.019 | -0.140 | 0.054 | FALSE | FALSE |
-| 8 | KPN | 19 | 30 | 2.28 | 0.450 | 0.404 | -0.062 | -0.234 | 0.063 | FALSE | FALSE |
-| 2 | BAN | 28 | 27 | 2.23 | 0.453 | 0.434 | -0.041 | -0.177 | 0.143 | FALSE | FALSE |
-| 10 | NIA | 21 | 24 | 2.20 | 0.394 | 0.442 | 0.128 | -0.060 | 0.357 | FALSE | FALSE |
-| 19 | TAL | 17 | 23 | 2.14 | 0.366 | 0.417 | 0.108 | -0.137 | 0.408 | FALSE | FALSE |
-| 20 | TXA | 13 | 20 | 1.96 | 0.362 | 0.357 | -0.026 | -0.189 | 0.190 | FALSE | FALSE |
+| pop  |   n | alleles | richness |    Ho |    He |    Fis | Fis_lo | Fis_hi |
+|:-----|----:|--------:|---------:|------:|------:|-------:|-------:|-------:|
+| ANG  |   4 |      29 |     3.22 | 0.722 | 0.704 | -0.049 | -0.313 |  0.329 |
+| BAN  |  28 |      27 |     2.23 | 0.453 | 0.434 | -0.041 | -0.177 |  0.143 |
+| CMR  |   6 |      28 |     2.73 | 0.526 | 0.509 |  0.011 | -0.175 |  0.137 |
+| DNT  |   6 |      31 |     3.05 | 0.441 | 0.509 |  0.184 | -0.071 |  0.389 |
+| DP   |  10 |      40 |     3.48 | 0.678 | 0.642 | -0.029 | -0.160 |  0.044 |
+| HAP  |  25 |      49 |     3.38 | 0.627 | 0.636 |  0.029 | -0.033 |  0.081 |
+| KIR  |  25 |      54 |     3.58 | 0.656 | 0.651 |  0.023 | -0.085 |  0.104 |
+| KPN  |  19 |      30 |     2.28 | 0.450 | 0.404 | -0.062 | -0.234 |  0.063 |
+| KRA  |  14 |      45 |     3.50 | 0.691 | 0.645 | -0.079 | -0.157 |  0.025 |
+| NIA  |  21 |      24 |     2.20 | 0.394 | 0.442 |  0.128 | -0.060 |  0.357 |
+| NOY  |  26 |      50 |     3.52 | 0.654 | 0.673 |  0.028 | -0.035 |  0.107 |
+| POS  |  28 |      66 |     4.15 | 0.786 | 0.767 | -0.027 | -0.073 |  0.018 |
+| PYA  |  27 |      62 |     4.01 | 0.716 | 0.729 |  0.014 | -0.040 |  0.071 |
+| RO   |  11 |      56 |     3.97 | 0.717 | 0.690 | -0.031 | -0.149 |  0.092 |
+| RUK  |  15 |      49 |     3.75 | 0.688 | 0.723 |  0.048 | -0.108 |  0.205 |
+| SK   |  24 |      53 |     3.53 | 0.681 | 0.650 | -0.063 | -0.118 |  0.025 |
+| SPEU |  22 |      51 |     3.58 | 0.697 | 0.663 | -0.052 | -0.118 |  0.025 |
+| TAI  |  18 |      28 |     2.33 | 0.463 | 0.445 | -0.019 | -0.140 |  0.054 |
+| TAL  |  17 |      23 |     2.14 | 0.366 | 0.417 |  0.108 | -0.137 |  0.408 |
+| TXA  |  13 |      20 |     1.96 | 0.362 | 0.357 | -0.026 | -0.189 |  0.190 |
+| UDO  |  28 |      30 |     2.36 | 0.405 | 0.443 |  0.063 | -0.022 |  0.193 |
+| YOD  |  22 |      34 |     2.62 | 0.470 | 0.510 |  0.060 | -0.125 |  0.269 |
+| PJ   |  22 |      65 |     3.78 | 0.677 | 0.684 |  0.029 | -0.058 |  0.119 |
+| PK   |  29 |      33 |     2.50 | 0.415 | 0.485 |  0.118 | -0.023 |  0.319 |
+| PW   |  30 |      41 |     2.61 | 0.435 | 0.485 |  0.108 | -0.055 |  0.280 |
+| PY   |  33 |      41 |     2.64 | 0.454 | 0.484 |  0.041 | -0.102 |  0.269 |
 
 </div>
 
-> 26 rows and no missing values. Ho is lower than He in 13 populations
-> and higher in the other 13. Both TRUE/FALSE columns add up to 0. Top
-> by rarefied richness: POS (4.15), PYA (4.01), RO (3.97). Bottom: TXA
-> (1.96), TAL (2.14), NIA (2.20).
+> 26 rows and no missing values. Which populations have the higher
+> genetic diversity, in rarefied richness, Ho or He?
 
 ## 4.8 Interpret the difference between Ho and He
 
@@ -840,9 +769,9 @@ rw_table[rw_table$pop == "NIA", ]
 
 <div class="kable-table">
 
-|  | pop | n | alleles | richness | Ho | He | Fis | Fis_lo | Fis_hi | deficit_supported | excess_supported |
-|:---|:---|---:|---:|---:|---:|---:|---:|---:|---:|:---|:---|
-| 10 | NIA | 21 | 24 | 2.2 | 0.394 | 0.442 | 0.128 | -0.06 | 0.357 | FALSE | FALSE |
+|     | pop |   n | alleles | richness |    Ho |    He |   Fis | Fis_lo | Fis_hi |
+|:----|:----|----:|--------:|---------:|------:|------:|------:|-------:|-------:|
+| 10  | NIA |  21 |      24 |      2.2 | 0.394 | 0.442 | 0.128 |  -0.06 |  0.357 |
 
 </div>
 
@@ -881,15 +810,13 @@ range(pairs); mean(pairs)             # compare the mean with the published GST 
     ## [1] 0.2473326
 
 ``` r
-png("outputs/fig_fst_heatmap.png", width = 7, height = 6.5, units = "in", res = 300)
 print(levelplot(fst, xlab = "", ylab = "",
       main = "Pairwise FST (Weir & Cockerham)",
       scales = list(x = list(rot = 90, cex = 0.6), y = list(cex = 0.6)),
       col.regions = colorRampPalette(c("#E8EDE8", "#E3C08A", "#C9794B", "#9C3B2C"))(100)))
-dev.off()
 ```
 
-<img src="outputs/fig_fst_heatmap.png" width="70%" />
+![](rosewood_activity1_files/figure-gfm/task-5-1-1.png)<!-- -->
 
 > 325 pairs. The mean FST is 0.247. Values range from −0.004 to 0.449
 > (TXA and DNT).
@@ -935,7 +862,7 @@ abline(lm(fst_m[lower.tri(fst_m)] ~ geo_m[lower.tri(geo_m)]), col = "#9C3B2C", l
 ![](rosewood_activity1_files/figure-gfm/task-5-2-1.png)<!-- -->
 
 ``` r
-set.seed(2026)
+set.seed(2026)                  # nrepet = 999 shuffles, so seed it
 mantel.randtest(as.dist(fst_m), as.dist(geo_m), nrepet = 999)
 ```
 
@@ -951,7 +878,8 @@ mantel.randtest(as.dist(fst_m), as.dist(geo_m), nrepet = 999)
     ##      Std.Obs  Expectation     Variance 
     ## 14.426342909  0.000559858  0.003714241
 
-> Observation = 0.880 and p = 0.001.
+> Observation = 0.880 and p = 0.001. FST increases by about 0.04 for
+> every 100 km.
 
 ## 5.3 Choose the number of clusters (K)
 
@@ -959,7 +887,8 @@ This is the line you run in the practical. R draws the BIC graph, asks
 `Choose the number of clusters (>=2):`, and you type `5`:
 
 ``` r
-set.seed(2026)
+set.seed(2026)                  # clustering starts from random seeds, so seed it
+# n.pca = 150 keeps all the genetic information; you do not need to change it
 grp <- find.clusters(rosewood, max.n.clust = 20, n.pca = 150)
 
 # R now draws the BIC graph and asks:
@@ -1040,7 +969,8 @@ rowSums(tab > 0)                # how many clusters does each population contain
     ##    1    2    1    2    2    1    2    2    2    3
 
 > 13 populations fall completely into one cluster; the other 13 contain
-> trees from more than one. PK splits 12 and 17, PY splits 17 and 15.
+> trees from more than one. PK splits 12 and 17; PY splits 17 and 15,
+> plus one stray tree.
 
 ## 5.5 Run the DAPC
 
@@ -1084,14 +1014,12 @@ rw_dapc
 K <- 5
 clust_cols <- brewer.pal(K, "Set2")
 
-png("outputs/fig_dapc_scatter.png", width = 6.5, height = 6, units = "in", res = 300)
 scatter(rw_dapc, col = clust_cols, cex = 1.1,
         scree.da = TRUE, scree.pca = TRUE, posi.pca = "bottomleft",
         legend = TRUE, posi.leg = "topright", cleg = 0.8)
-dev.off()
 ```
 
-<img src="outputs/fig_dapc_scatter.png" width="65%" />
+![](rosewood_activity1_files/figure-gfm/task-5-6-1.png)<!-- -->
 
 ## 5.7 Work out cluster membership for each population and map it
 
@@ -1117,6 +1045,14 @@ round(head(postprobs), 3)
 rw_pops <- pop(rosewood)
 qpop <- t(sapply(levels(rw_pops),
                  function(p) colMeans(postprobs[rw_pops == p, , drop = FALSE])))
+```
+
+`qpop` is in alphabetical order and `rw_coords` need not be, so match
+them **by name**. Get this wrong and R will not warn you; it will just
+draw the wrong pie on the wrong population.
+
+``` r
+qpop <- qpop[rownames(rw_coords), ]             # align by name, not by position
 round(qpop, 3)
 ```
 
@@ -1148,45 +1084,11 @@ round(qpop, 3)
     ## PW   0.203 0.000 0.000 0.000 0.797
     ## PY   0.508 0.000 0.030 0.000 0.462
 
-``` r
-range(rowSums(qpop))            # must be 1, 1
-```
-
-    ## [1] 1 1
-
-``` r
-# rw_coords is already loaded from task 5.2 - harmless to re-run
-rw_coords <- read.csv("rosewood_coords.csv", row.names = 1)
-
-setdiff(rownames(qpop),      rownames(rw_coords))   # must be empty
-```
-
-    ## character(0)
-
-``` r
-setdiff(rownames(rw_coords), rownames(qpop))        # must be empty
-```
-
-    ## character(0)
-
-``` r
-identical(rownames(qpop), rownames(rw_coords))      # TRUE only if already aligned
-```
-
-    ## [1] TRUE
-
-``` r
-qpop <- qpop[rownames(rw_coords), ]             # align by name, not by position
-```
-
-> Both `setdiff()` results are empty and `identical()` is TRUE. PYA,
-> TAL, CMR and YOD are all 1.000. PK splits 0.416 / 0.584, PY 0.508 /
-> 0.462, ANG 0.540 / 0.460.
+> PYA, TAL, CMR and YOD are all 1.000. PK splits 0.416 / 0.584, PY 0.508
+> / 0.462, and ANG 0.540 / 0.460 on only 4 trees.
 
 ``` r
 clust_cols <- brewer.pal(K, "Set2")
-
-png("outputs/fig_map_dapc.png", width = 5.5, height = 6.5, units = "in", res = 300)
 
 plot(rw_coords[, 1], rw_coords[, 2], type = "n", asp = 1,
      xlab = "Longitude (degrees E)", ylab = "Latitude (degrees N)",
@@ -1215,15 +1117,17 @@ for (i in seq_len(nrow(qpop))) {
 
 legend("bottomleft", legend = paste("Cluster", 1:K), fill = clust_cols,
        bty = "n", cex = 0.8, title = "DAPC cluster")
-dev.off()
 ```
 
-<img src="outputs/fig_map_dapc.png" width="55%" />
+![](rosewood_activity1_files/figure-gfm/task-5-7-map-1.png)<!-- -->
 
 > Neighbouring populations mostly share the same colours, and a colour
 > boundary follows the Mekong.
 
 ## 5.8 + optional · Check whether the clusters change with K
+
+The handout asks you to re-run 5.3 to 5.7 with K = 3 and K = 7. Here
+`n.clust` sets K directly, so there is nothing to type:
 
 ``` r
 set.seed(2026)
@@ -1259,74 +1163,10 @@ table(grp$grp, grp7$grp)        # which K=5 clusters split at K=7?
 > Clusters 3 and 4 stay almost the same. At K = 3, clusters 1 and 5
 > merge; at K = 7, clusters 1, 2 and 5 each split in two.
 
-## 5.9 + optional · Look at individual admixture
-
-``` r
-png("outputs/fig_compoplot.png", width = 9, height = 4, units = "in", res = 300)
-compoplot(rw_dapc, col.pal = function(n) brewer.pal(n, "Set2"),
-          ncol = 5, cleg = 0.7)
-dev.off()
-```
-
-<img src="outputs/fig_compoplot.png" width="90%" />
-
 # Station 6 · From science to conservation recommendations
 
-Station 6 has no code. It uses `outputs/table_diversity.csv` from 4.7
-and `outputs/fig_map_dapc.png` from 5.7, both written above.
-
-# Reference · the catch-up block
-
-This is the block in the handout’s Reference section, for anyone who
-falls behind. It repeats Stations 1 to 4 without plots, so it is not run
-here.
-
-``` r
-# ---- Catch-up: Stations 1 to 4, essentials only ----
-set.seed(2026)
-
-rosewood  <- read.genalex("rosewood.csv")
-stopifnot(nInd(rosewood) == 523, nLoc(rosewood) == 9, nPop(rosewood) == 26)
-
-# Station 2: HWE per population
-rw_hwe_pop <- lapply(seppop(rosewood), hw.test, B = 1000)
-rw_hwe_mat <- sapply(rw_hwe_pop, "[", i = TRUE, j = 3)
-cat("significant raw:", sum(rw_hwe_mat < 0.05, na.rm = TRUE),
-    "| expected by chance:", round(0.05 * sum(!is.na(rw_hwe_mat))),
-    "| after BH:", sum(p.adjust(rw_hwe_mat, "BH") < 0.05, na.rm = TRUE), "\n")
-
-# Station 4: diversity, rarefied richness, FIS with CI
-rw_sum      <- summary(rosewood)
-rw_hfstat   <- genind2hierfstat(rosewood)
-rw_ar       <- allelic.richness(rw_hfstat)
-rw_pop_ar   <- colMeans(rw_ar$Ar, na.rm = TRUE)
-rw_pop_stat <- basic.stats(rw_hfstat, diploid = TRUE, digits = 3)
-
-set.seed(2026)
-fis_ci    <- boot.ppfis(rw_hfstat, nboot = 1000)$fis.ci
-pop_order <- levels(factor(rw_hfstat$pop))
-
-rw_table <- data.frame(
-  pop      = pop_order,
-  n        = as.numeric(rw_sum$n.by.pop[pop_order]),
-  alleles  = as.numeric(rw_sum$pop.n.all[pop_order]),
-  richness = round(rw_pop_ar[pop_order], 2),
-  Ho       = round(colMeans(rw_pop_stat$Ho,  na.rm = TRUE)[pop_order], 3),
-  He       = round(colMeans(rw_pop_stat$Hs,  na.rm = TRUE)[pop_order], 3),
-  Fis      = round(colMeans(rw_pop_stat$Fis, na.rm = TRUE)[pop_order], 3),
-  Fis_lo   = round(fis_ci[, 1], 3),
-  Fis_hi   = round(fis_ci[, 2], 3),
-  row.names = NULL
-)
-rw_table$deficit_supported <- rw_table$Fis_lo > 0
-
-dir.create("outputs", showWarnings = FALSE)
-write.csv(rw_table, "outputs/table_diversity.csv", row.names = FALSE)
-
-cat("mean He:", round(mean(rw_table$He), 3), "(published: 0.55)\n")
-cat("populations with FIS interval above 0:", sum(rw_table$deficit_supported), "of 26\n")
-head(rw_table[order(-rw_table$richness), ], 8)
-```
+Station 6 has no code. It uses the diversity table from 4.7 and the
+cluster map from 5.7, both above.
 
 ``` r
 sessionInfo()
@@ -1353,7 +1193,7 @@ sessionInfo()
     ## [1] stats     graphics  grDevices utils     datasets  methods   base     
     ## 
     ## other attached packages:
-    ##  [1] RColorBrewer_1.1-3 maps_3.4.3         mapplots_1.5.3     lattice_0.22-7    
+    ##  [1] RColorBrewer_1.1-3 mapplots_1.5.3     maps_3.4.3         lattice_0.22-7    
     ##  [5] hierfstat_0.5-11   pegas_1.3          ape_5.8-1          poppr_2.9.8       
     ##  [9] adegenet_2.1.11    ade4_1.7-23       
     ## 
