@@ -103,9 +103,9 @@ getwd()                 # should end in /rosewood
 list.files()            # should list the three .csv files
 ```
 
-    ## [1] "rosewood.csv"               "rosewood_activity1.Rmd"    
-    ## [3] "rosewood_activity1_aux.Rmd" "rosewood_coords.csv"       
-    ## [5] "rosewood_water.csv"
+    ## [1] "figures"                    "rosewood.csv"              
+    ## [3] "rosewood_activity1.Rmd"     "rosewood_activity1_aux.Rmd"
+    ## [5] "rosewood_coords.csv"        "rosewood_water.csv"
 
 ``` r
 # ---- 2. Packages ----
@@ -659,10 +659,33 @@ fis_ci <- boot.ppfis(rw_hfstat, nboot = 1000)$fis.ci   # columns: lower limit, u
 # boot.ppfis() returns 26 rows with no population names attached. This is the
 # order they follow, so you can join them to the right populations in 4.7.
 pop_order <- levels(factor(rw_hfstat$pop))
+
+# A forest plot: the dot is FIS, the line is its interval. Sort by FIS so the
+# plot reads bottom to top, and colour the populations with very few trees.
+o   <- order(rw_pop_fis[pop_order])
+nby <- as.numeric(rw_sum$n.by.pop[pop_order])
+col <- ifelse(nby <= 6, "#9C3B2C", "#1D6B56")
+
+par(mar = c(4.5, 5.5, 1, 1))
+plot(rw_pop_fis[pop_order][o], seq_along(o), pch = 19, col = col[o],
+     xlim = range(fis_ci), yaxt = "n", ylab = "",
+     xlab = "FIS, with its 95% bootstrap confidence interval")
+segments(fis_ci[o, 1], seq_along(o), fis_ci[o, 2], seq_along(o), col = col[o], lwd = 2)
+axis(2, at = seq_along(o), labels = paste0(pop_order[o], " (", nby[o], ")"),
+     las = 1, cex.axis = 0.7)
+abline(v = 0, lty = 2)          # FIS = 0 is random mating
+legend("bottomright", c("6 trees or fewer", "more than 6 trees"),
+       col = c("#9C3B2C", "#1D6B56"), lwd = 2, bty = "n", cex = 0.8)
 ```
 
-> All 26 intervals include 0. ANG’s runs from −0.31 to +0.33 on 4 trees;
-> POS’s, on 28 trees, is only 0.09 wide.
+![](rosewood_activity1_files/figure-gfm/task-4-6-1.png)<!-- -->
+
+> Every interval crosses the dashed line at 0, so no population departs
+> significantly from random mating. Read the widths rather than the
+> verdict: ANG’s interval is 0.64 wide on 4 trees, POS’s only 0.09 on
+> 28. Sample size is not the whole story, though: TAL has the second
+> widest interval on 17 trees. DNT has the highest FIS (0.18) and KRA
+> the lowest (−0.08).
 
 ## 4.7 Combine the results into one table
 
@@ -716,8 +739,46 @@ rw_table
 
 </div>
 
-> 26 rows and no missing values. Which populations have the higher
-> genetic diversity, in rarefied richness, Ho or He?
+``` r
+# Draw the table. Both panels use the same population order, sorted by He, so
+# you can read straight across from one to the other.
+o <- order(rw_table$He)
+y <- seq_len(nrow(rw_table))
+
+par(mfrow = c(1, 2), mar = c(4.5, 5, 3, 1))
+
+plot(rw_table$richness[o], y, pch = 19, col = "#1D6B56", yaxt = "n", ylab = "",
+     xlab = "Rarefied allelic richness", main = "Diversity corrected for effort")
+axis(2, at = y, labels = rw_table$pop[o], las = 1, cex.axis = 0.7)
+
+# The grey bar is the distance between Ho and He. FIS = 1 - Ho/He, so a red dot
+# to the LEFT of its blue one (Ho below He) is a positive FIS.
+plot(rw_table$He[o], y, type = "n", xlim = range(c(rw_table$Ho, rw_table$He)),
+     yaxt = "n", ylab = "", xlab = "Heterozygosity", main = "Ho against He")
+segments(rw_table$Ho[o], y, rw_table$He[o], y, col = "grey80", lwd = 3)
+points(rw_table$Ho[o], y, pch = 19, col = "#9C3B2C")
+points(rw_table$He[o], y, pch = 19, col = "#2E6A99")
+axis(2, at = y, labels = rw_table$pop[o], las = 1, cex.axis = 0.7)
+legend("topleft", c("Ho observed", "He expected"), col = c("#9C3B2C", "#2E6A99"),
+       pch = 19, bty = "n", cex = 0.8)
+```
+
+![](rosewood_activity1_files/figure-gfm/task-4-7-1.png)<!-- -->
+
+``` r
+par(mfrow = c(1, 1))            # back to one panel per plot
+```
+
+> 26 rows and no missing values. The two diversity measures mostly agree
+> (r = 0.97), so the left panel falls away steadily — but ANG is 4th on
+> He and only 13th on richness, which is what 4 trees buys you. The
+> right panel splits the populations into two bands: 13 sit at He 0.64
+> to 0.77 and 13 at 0.36 to 0.51, with nothing in between. Every
+> population north of 16°N is in the lower band. Hold on to that for
+> Station 5.
+>
+> Which populations have the higher genetic diversity, in rarefied
+> richness, Ho or He?
 
 ## 4.8 Interpret the difference between Ho and He
 

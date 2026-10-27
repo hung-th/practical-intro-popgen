@@ -247,6 +247,17 @@ check("4.5", "poppr Hexp matches hierfstat Hs (largest gap < 0.01)",
       max(abs(hx[names(rw_pop_hs)] - rw_pop_hs)) < 0.01, TRUE)
 
 ci_width <- setNames(rw_table$Fis_hi - rw_table$Fis_lo, rw_table$pop)
+
+# the forest plot students draw in 4.6
+check("4.6", "highest FIS", rw_table$pop[which.max(rw_table$Fis)], "DNT")
+check("4.6", "highest FIS value", max(rw_table$Fis), 0.184, tol = 0.001)
+check("4.6", "lowest FIS", rw_table$pop[which.min(rw_table$Fis)], "KRA")
+check("4.6", "lowest FIS value", min(rw_table$Fis), -0.079, tol = 0.001)
+check("4.6", "second widest interval", names(sort(-ci_width))[2], "TAL")
+check("4.6", "and it is not a small sample", rw_table$n[rw_table$pop == "TAL"], 17)
+check("4.6", "populations marked as small samples", sum(rw_table$n <= 6), 3)
+check("4.6", "plot x-axis spans", round(range(fis_ci), 2), c(-0.31, 0.41), tol = 0.01)
+
 check("4.7", "rows", nrow(rw_table), 26)
 check("4.7", "populations with Ho < He", sum(rw_table$Ho < rw_table$He), 13)
 check("4.7", "intervals entirely above 0", sum(rw_table$Fis_lo > 0), 0)
@@ -265,6 +276,22 @@ check("4.7", "POS FIS interval", c(rw_table$Fis_lo[rw_table$pop == "POS"],
       rw_table$Fis_hi[rw_table$pop == "POS"]), c(-0.073, 0.018), tol = 0.001)
 check("4.7", "ANG FIS interval", c(rw_table$Fis_lo[rw_table$pop == "ANG"],
       rw_table$Fis_hi[rw_table$pop == "ANG"]), c(-0.313, 0.329), tol = 0.001)
+
+# the two panels students draw in 4.7
+check("4.7", "richness against He", round(cor(rw_table$richness, rw_table$He), 2),
+      0.97, tol = 0.005)
+check("4.7", "ANG ranks high on He", rank(-rw_table$He)[rw_table$pop == "ANG"], 4)
+check("4.7", "but middling on richness", rank(-rw_table$richness)[rw_table$pop == "ANG"], 13)
+check("4.7", "populations in the upper He band", sum(rw_table$He >= 0.6), 13)
+check("4.7", "upper band He range", range(rw_table$He[rw_table$He >= 0.6]),
+      c(0.636, 0.767), tol = 0.001)
+check("4.7", "lower band He range", range(rw_table$He[rw_table$He < 0.6]),
+      c(0.357, 0.510), tol = 0.001)
+check("4.7", "gap between the two bands", round(max(diff(sort(rw_table$He))), 3),
+      0.126, tol = 0.001)
+check("4.7", "everything north of 16 N is in the lower band",
+      max(rw_table$He[rw_table$pop %in% rownames(rw_coords)[rw_coords[, 2] > 16]]) < 0.6,
+      TRUE)
 
 nia <- rw_table[rw_table$pop == "NIA", ]
 check("4.8", "NIA Ho", nia$Ho, 0.394, tol = 0.001)

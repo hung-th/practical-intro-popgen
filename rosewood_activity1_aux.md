@@ -586,6 +586,56 @@ check("4.5", "poppr Hexp matches hierfstat Hs (largest gap < 0.01)",
 
 ``` r
 ci_width <- setNames(rw_table$Fis_hi - rw_table$Fis_lo, rw_table$pop)
+
+# the forest plot students draw in 4.6
+check("4.6", "highest FIS", rw_table$pop[which.max(rw_table$Fis)], "DNT")
+```
+
+    ## PASS  [4.6] highest FIS: got DNT, handout says DNT
+
+``` r
+check("4.6", "highest FIS value", max(rw_table$Fis), 0.184, tol = 0.001)
+```
+
+    ## PASS  [4.6] highest FIS value: got 0.184, handout says 0.184
+
+``` r
+check("4.6", "lowest FIS", rw_table$pop[which.min(rw_table$Fis)], "KRA")
+```
+
+    ## PASS  [4.6] lowest FIS: got KRA, handout says KRA
+
+``` r
+check("4.6", "lowest FIS value", min(rw_table$Fis), -0.079, tol = 0.001)
+```
+
+    ## PASS  [4.6] lowest FIS value: got -0.079, handout says -0.079
+
+``` r
+check("4.6", "second widest interval", names(sort(-ci_width))[2], "TAL")
+```
+
+    ## PASS  [4.6] second widest interval: got TAL, handout says TAL
+
+``` r
+check("4.6", "and it is not a small sample", rw_table$n[rw_table$pop == "TAL"], 17)
+```
+
+    ## PASS  [4.6] and it is not a small sample: got 17, handout says 17
+
+``` r
+check("4.6", "populations marked as small samples", sum(rw_table$n <= 6), 3)
+```
+
+    ## PASS  [4.6] populations marked as small samples: got 3, handout says 3
+
+``` r
+check("4.6", "plot x-axis spans", round(range(fis_ci), 2), c(-0.31, 0.41), tol = 0.01)
+```
+
+    ## PASS  [4.6] plot x-axis spans: got -0.31  0.41, handout says -0.31  0.41
+
+``` r
 check("4.7", "rows", nrow(rw_table), 26)
 ```
 
@@ -672,6 +722,61 @@ check("4.7", "ANG FIS interval", c(rw_table$Fis_lo[rw_table$pop == "ANG"],
 ```
 
     ## PASS  [4.7] ANG FIS interval: got -0.313  0.329, handout says -0.313  0.329
+
+``` r
+# the two panels students draw in 4.7
+check("4.7", "richness against He", round(cor(rw_table$richness, rw_table$He), 2),
+      0.97, tol = 0.005)
+```
+
+    ## PASS  [4.7] richness against He: got 0.97, handout says 0.97
+
+``` r
+check("4.7", "ANG ranks high on He", rank(-rw_table$He)[rw_table$pop == "ANG"], 4)
+```
+
+    ## PASS  [4.7] ANG ranks high on He: got 4, handout says 4
+
+``` r
+check("4.7", "but middling on richness", rank(-rw_table$richness)[rw_table$pop == "ANG"], 13)
+```
+
+    ## PASS  [4.7] but middling on richness: got 13, handout says 13
+
+``` r
+check("4.7", "populations in the upper He band", sum(rw_table$He >= 0.6), 13)
+```
+
+    ## PASS  [4.7] populations in the upper He band: got 13, handout says 13
+
+``` r
+check("4.7", "upper band He range", range(rw_table$He[rw_table$He >= 0.6]),
+      c(0.636, 0.767), tol = 0.001)
+```
+
+    ## PASS  [4.7] upper band He range: got 0.636 0.767, handout says 0.636 0.767
+
+``` r
+check("4.7", "lower band He range", range(rw_table$He[rw_table$He < 0.6]),
+      c(0.357, 0.510), tol = 0.001)
+```
+
+    ## PASS  [4.7] lower band He range: got 0.357 0.510, handout says 0.357 0.510
+
+``` r
+check("4.7", "gap between the two bands", round(max(diff(sort(rw_table$He))), 3),
+      0.126, tol = 0.001)
+```
+
+    ## PASS  [4.7] gap between the two bands: got 0.126, handout says 0.126
+
+``` r
+check("4.7", "everything north of 16 N is in the lower band",
+      max(rw_table$He[rw_table$pop %in% rownames(rw_coords)[rw_coords[, 2] > 16]]) < 0.6,
+      TRUE)
+```
+
+    ## PASS  [4.7] everything north of 16 N is in the lower band: got TRUE, handout says TRUE
 
 ``` r
 nia <- rw_table[rw_table$pop == "NIA", ]
@@ -873,7 +978,7 @@ table(.checks$result)
 
     ## 
     ## PASS 
-    ##  109
+    ##  125
 
 ``` r
 .checks[.checks$result == "FAIL", ]
@@ -1356,7 +1461,7 @@ table(.checks$result)
 
     ## 
     ## PASS 
-    ##  131
+    ##  147
 
 ``` r
 .checks[.checks$result == "FAIL", ]
