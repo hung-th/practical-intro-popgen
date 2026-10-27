@@ -9,7 +9,7 @@ part of the response. But a planting programme that ignores standing genetic div
 can build a genetic bottleneck into the new forest. The practical asks where the seed
 should come from, and makes students answer it from the data.
 
-It is a two-hour self-led session in seven stations. Students load and check the data,
+It is a two-and-a-half-hour self-led session in seven stations. Students load and check the data,
 test Hardy–Weinberg and linkage, measure diversity corrected for sampling effort, then
 describe population structure with pairwise *F*<sub>ST</sub>, a Mantel test and DAPC.
 It ends with a conservation recommendation they have to defend.
