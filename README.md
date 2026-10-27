@@ -121,7 +121,7 @@ result drifts, a check fails and says by how much.
 
 ## Source
 
-Hartvig I, So T, Changtragoon S, et al. (2018) Population genetic structure of the
+Hartvig I, So T, Changtragoon S, et al. (2018, online 2017) Population genetic structure of the
 endemic rosewoods *Dalbergia cochinchinensis* and *D. oliveri* at a regional scale
 reflects the Indochinese landscape and life-history traits. *Ecology and Evolution*
 8(1): 530–545. https://doi.org/10.1002/ece3.3626
