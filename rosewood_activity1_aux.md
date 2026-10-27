@@ -19,6 +19,8 @@ Tin Hang Hung
     7)](#linkage-disequilibrium-two-causes-slide-7)
   - [Allele accumulation, PY vs ANG (task 4.4, slide
     8)](#allele-accumulation-py-vs-ang-task-44-slide-8)
+  - [Rank change after rarefaction (task
+    4.4)](#rank-change-after-rarefaction-task-44)
   - [FIS intervals for all 26 populations (task
     4.6)](#fis-intervals-for-all-26-populations-task-46)
   - [FST against distance, coloured by cluster (task
@@ -34,7 +36,7 @@ practical:
 1.  **Checks.** It re-runs the practical and compares every result with
     the number quoted in the handout’s *Expect to see* boxes. `PASS`
     means your machine reproduces the handout; `FAIL` shows both values.
-2.  **Teaching figures.** It rebuilds the seven figures used on the
+2.  **Teaching figures.** It rebuilds the eight figures used on the
     Notion page and in the pre-practical slides, and writes them to
     `figures/`.
 
@@ -1052,6 +1054,99 @@ check("fig", "PY alleles at 33 trees", full, 41)
 
 <img src="figures/fig_accumulation.png" width="80%" />
 
+## Rank change after rarefaction (task 4.4)
+
+A slope chart answers “which populations have a new ranking?” at a
+glance, which the raw-vs-rarefied scatter does not.
+
+``` r
+d$rank_raw  <- rank(-d$alleles,  ties.method = "first")
+d$rank_rare <- rank(-d$richness, ties.method = "first")
+d$move      <- d$rank_raw - d$rank_rare      # positive = climbed after rarefaction
+
+fig("fig_rank.png", 7.2, 6.6)
+up <- C1; dn <- C2; same <- "#B8C0B4"
+par(mar = c(0.4, 0.4, 4.2, 0.4), family = "sans")
+plot(0, type = "n", xlim = c(0.42, 2.58), ylim = c(27.6, -0.2), axes = FALSE, xlab = "", ylab = "")
+title("Rarefaction reshuffles the ranking", adj = 0, cex.main = 1.3, col.main = INK)
+mtext("each line is one population; the biggest movers are the smallest and largest samples",
+      side = 3, line = 0.9, adj = 0, cex = 0.88, col = SOFT)
+text(c(1, 2), -0.2, c("by alleles counted", "by rarefied richness"),
+     font = 2, cex = 0.9, col = SOFT)
+cols <- ifelse(d$move > 0, up, ifelse(d$move < 0, dn, same))
+segments(1, d$rank_raw, 2, d$rank_rare, col = cols,
+         lwd = ifelse(abs(d$move) >= 4, 2.8, 1.1))
+points(rep(1, nrow(d)), d$rank_raw,  pch = 19, cex = 0.65, col = cols)
+points(rep(2, nrow(d)), d$rank_rare, pch = 19, cex = 0.65, col = cols)
+text(0.96, d$rank_raw,  sprintf("%s  %d", d$pop, d$alleles),    adj = 1, cex = 0.66, col = INK)
+text(2.04, d$rank_rare, sprintf("%s  %.2f", d$pop, d$richness), adj = 0, cex = 0.66, col = INK)
+
+# label the big movers, with a white halo so the line does not cut through the text
+halo <- function(x, y, labels, col, cex = 0.66) {
+  ox <- 0.004 * diff(par("usr")[1:2]); oy <- 0.004 * diff(par("usr")[3:4])
+  for (i in -1:1) for (j in -1:1) if (i || j)
+    text(x + i * ox, y + j * oy, labels, col = "white", cex = cex, font = 2)
+  text(x, y, labels, col = col, cex = cex, font = 2)
+}
+big <- abs(d$move) >= 4
+halo(1.5, (d$rank_raw[big] + d$rank_rare[big]) / 2,
+     sprintf("%+d  (n = %d)", d$move[big], d$n[big]), cols[big])
+legend(0.42, 27.6, legend = c("moved up", "moved down", "no change"), horiz = TRUE,
+       col = c(up, dn, same), lwd = 2.4, bty = "n", cex = 0.78, text.col = INK)
+dev.off()
+```
+
+``` r
+check("fig", "ANG climbs 7 places", d$move[d$pop == "ANG"], 7)
+```
+
+    ## PASS  [fig] ANG climbs 7 places: got 7, handout says 7
+
+``` r
+check("fig", "ANG goes 20th to 13th", c(d$rank_raw[d$pop == "ANG"], d$rank_rare[d$pop == "ANG"]), c(20, 13))
+```
+
+    ## PASS  [fig] ANG goes 20th to 13th: got 20 13, handout says 20 13
+
+``` r
+check("fig", "PW falls 6 places", d$move[d$pop == "PW"], -6)
+```
+
+    ## PASS  [fig] PW falls 6 places: got -6, handout says -6
+
+``` r
+check("fig", "populations that do not move", sum(d$move == 0), 6)
+```
+
+    ## PASS  [fig] populations that do not move: got 6, handout says 6
+
+``` r
+check("fig", "biggest climbers all have n <= 15", max(d$n[d$move >= 4]), 15)
+```
+
+    ## PASS  [fig] biggest climbers all have n <= 15: got 15, handout says 15
+
+``` r
+check("fig", "biggest fallers all have n >= 19", min(d$n[d$move <= -4]), 19)
+```
+
+    ## PASS  [fig] biggest fallers all have n >= 19: got 19, handout says 19
+
+``` r
+check("fig", "sample size against rank movement", round(cor(d$n, d$move), 2), -0.78, tol = 0.005)
+```
+
+    ## PASS  [fig] sample size against rank movement: got -0.78, handout says -0.78
+
+``` r
+check("fig", "POS still first, TXA still last",
+      c(d$rank_rare[d$pop == "POS"], d$rank_rare[d$pop == "TXA"]), c(1, 26))
+```
+
+    ## PASS  [fig] POS still first, TXA still last: got  1 26, handout says  1 26
+
+<img src="figures/fig_rank.png" width="80%" />
+
 ## FIS intervals for all 26 populations (task 4.6)
 
 ``` r
@@ -1261,7 +1356,7 @@ table(.checks$result)
 
     ## 
     ## PASS 
-    ##  123
+    ##  131
 
 ``` r
 .checks[.checks$result == "FAIL", ]

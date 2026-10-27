@@ -373,21 +373,6 @@ dim(rw_hwe_mat)           # 9 loci x 26 populations
 
     ## [1]  9 26
 
-``` r
-round(rw_hwe_mat[, 1:5], 3)
-```
-
-    ##                ANG   BAN   CMR   DNT    DP
-    ## 6-FAM COC-13 0.506 0.196 0.382 0.371 0.403
-    ## VIC COC-05   0.261 0.101 0.944 1.000 0.708
-    ## VIC COC-01   0.339 0.671 0.709 1.000 0.725
-    ## NED COC-10   0.046 0.044 0.007 0.014 0.268
-    ## 6-FAM COC-11 0.506 0.149 0.777 0.219 0.528
-    ## 6-FAM COC-06 0.766 0.765 0.824 0.095 0.340
-    ## VIC COC-08   0.528 0.603 0.835 0.971 0.288
-    ## NED COC-18   0.695 0.998 0.824 0.197 0.698
-    ## PET COC-07   0.677 0.492 0.428 0.154 0.206
-
 ## 2.3 Plot the P-values as a heatmap
 
 ``` r
@@ -490,32 +475,9 @@ head(round(rw_pair[order(-rw_pair[, "rbarD"]), ], 3))
 ## 4.1 Count alleles per population
 
 ``` r
+# rw_sum$pop.n.all is alleles per population; rw_sum$n.by.pop is trees per population
 rw_sum <- summary(rosewood)
-names(rw_sum)              # see what else is in there
-```
 
-    ## [1] "n"         "n.by.pop"  "loc.n.all" "pop.n.all" "NA.perc"   "Hobs"     
-    ## [7] "Hexp"
-
-``` r
-rw_sum$pop.n.all           # alleles counted, per population
-```
-
-    ##  ANG  BAN  CMR  DNT   DP  HAP  KIR  KPN  KRA  NIA  NOY  POS  PYA   RO  RUK   SK 
-    ##   29   27   28   31   40   49   54   30   45   24   50   66   62   56   49   53 
-    ## SPEU  TAI  TAL  TXA  UDO  YOD   PJ   PK   PW   PY 
-    ##   51   28   23   20   30   34   65   33   41   41
-
-``` r
-rw_sum$n.by.pop            # trees sampled, per population
-```
-
-    ##  ANG  BAN  CMR  DNT   DP  HAP  KIR  KPN  KRA  NIA  NOY  POS  PYA   RO  RUK   SK 
-    ##    4   28    6    6   10   25   25   19   14   21   26   28   27   11   15   24 
-    ## SPEU  TAI  TAL  TXA  UDO  YOD   PJ   PK   PW   PY 
-    ##   22   18   17   13   28   22   22   29   30   33
-
-``` r
 par(mar = c(6, 4.5, 2, 1))
 barplot(sort(rw_sum$pop.n.all, decreasing = TRUE), las = 2, cex.names = 0.75,
         ylab = "Alleles counted (not corrected for sample size)")
@@ -576,21 +538,6 @@ dim(rw_hfstat)             # 523 rows; column 1 is population, then one per locu
 
     ## [1] 523  10
 
-``` r
-rw_hfstat[1:4, 1:4]
-```
-
-<div class="kable-table">
-
-|            | pop | X6.FAM.COC.13 | VIC.COC.05 | VIC.COC.01 |
-|:-----------|:----|--------------:|-----------:|-----------:|
-| ANG-coc-2  | ANG |        156156 |     120130 |     183191 |
-| ANG-coc-4  | ANG |        156154 |     120144 |     191187 |
-| ANG-coc-19 | ANG |        156154 |     120130 |     187187 |
-| ANG-coc-20 | ANG |        154150 |     120130 |     187187 |
-
-</div>
-
 ## 4.4 Compute rarefied allelic richness
 
 ``` r
@@ -616,28 +563,58 @@ cor(d$n, d$richness)       # rarefied richness vs sample size
     ## [1] -0.04313497
 
 ``` r
-plot(d$alleles, d$richness, pch = 19, col = "#1D6B56",
-     xlab = "Alleles counted (raw)", ylab = "Rarefied allelic richness")
-text(d$alleles, d$richness, labels = d$pop, pos = 4, cex = 0.55)
+# Rank the populations twice and see what moved. A positive "move" means the
+# population climbed once every population was compared at 8 gene copies.
+d$rank_raw  <- rank(-d$alleles,  ties.method = "first")
+d$rank_rare <- rank(-d$richness, ties.method = "first")
+d$move      <- d$rank_raw - d$rank_rare
+
+d[order(-d$move), c("pop", "n", "alleles", "rank_raw", "richness", "rank_rare", "move")]
 ```
 
-![](rosewood_activity1_files/figure-gfm/task-4-4-1.png)<!-- -->
+<div class="kable-table">
+
+|     | pop  |   n | alleles | rank_raw | richness | rank_rare | move |
+|:----|:-----|----:|--------:|---------:|---------:|----------:|-----:|
+| 1   | ANG  |   4 |      29 |       20 | 3.222222 |        13 |    7 |
+| 3   | CMR  |   6 |      28 |       21 | 2.729068 |        15 |    6 |
+| 15  | RUK  |  15 |      49 |       10 | 3.748723 |         5 |    5 |
+| 4   | DNT  |   6 |      31 |       17 | 3.052525 |        14 |    3 |
+| 5   | DP   |  10 |      40 |       14 | 3.484261 |        11 |    3 |
+| 9   | KRA  |  14 |      45 |       11 | 3.495570 |        10 |    1 |
+| 13  | PYA  |  27 |      62 |        3 | 4.008758 |         2 |    1 |
+| 14  | RO   |  11 |      56 |        4 | 3.972988 |         3 |    1 |
+| 18  | TAI  |  18 |      28 |       22 | 2.331939 |        21 |    1 |
+| 2   | BAN  |  28 |      27 |       23 | 2.233220 |        23 |    0 |
+| 10  | NIA  |  21 |      24 |       24 | 2.198026 |        24 |    0 |
+| 12  | POS  |  28 |      66 |        1 | 4.153833 |         1 |    0 |
+| 17  | SPEU |  22 |      51 |        7 | 3.579594 |         7 |    0 |
+| 19  | TAL  |  17 |      23 |       25 | 2.135658 |        25 |    0 |
+| 20  | TXA  |  13 |      20 |       26 | 1.959072 |        26 |    0 |
+| 7   | KIR  |  25 |      54 |        5 | 3.580188 |         6 |   -1 |
+| 11  | NOY  |  26 |      50 |        8 | 3.521492 |         9 |   -1 |
+| 21  | UDO  |  28 |      30 |       19 | 2.358801 |        20 |   -1 |
+| 16  | SK   |  24 |      53 |        6 | 3.528674 |         8 |   -2 |
+| 22  | YOD  |  22 |      34 |       15 | 2.615279 |        17 |   -2 |
+| 23  | PJ   |  22 |      65 |        2 | 3.776030 |         4 |   -2 |
+| 6   | HAP  |  25 |      49 |        9 | 3.377126 |        12 |   -3 |
+| 24  | PK   |  29 |      33 |       16 | 2.498697 |        19 |   -3 |
+| 26  | PY   |  33 |      41 |       13 | 2.637964 |        16 |   -3 |
+| 8   | KPN  |  19 |      30 |       18 | 2.284698 |        22 |   -4 |
+| 25  | PW   |  30 |      41 |       12 | 2.607203 |        18 |   -6 |
+
+</div>
 
 > `rw_ar$min.all` = 8 gene copies. The correlation with sample size
-> drops from 0.317 to −0.043. ANG rises to 13th (3.22), ahead of PY
-> (2.64, 16th).
+> drops from 0.317 to −0.043. ANG climbs 7 places (20th to 13th) on its
+> 4 trees, PW falls 6 on its 30, and six populations do not move at all.
+> The biggest climbers are the smallest samples and the biggest fallers
+> the largest; shifts of one place are just noise.
 
 ## 4.5 Get heterozygosity and FIS per population
 
 ``` r
 rw_pop_stat <- basic.stats(rw_hfstat, diploid = TRUE, digits = 3)
-names(rw_pop_stat)
-```
-
-    ## [1] "n.ind.samp" "pop.freq"   "Ho"         "Hs"         "Fis"       
-    ## [6] "perloc"     "overall"
-
-``` r
 rw_pop_stat$Ho[1:3, 1:4]        # a locus x population matrix, not one number per population
 ```
 
@@ -677,31 +654,12 @@ trees pooled. FIS = 1 − Ho/Hs, and FST = 1 − Hs/Ht.
 
 ``` r
 set.seed(2026)                  # nboot = 1000 resamples, so seed it
-fis_ci <- boot.ppfis(rw_hfstat, nboot = 1000)$fis.ci
-head(fis_ci)                       # columns: lower limit, upper limit
-```
+fis_ci <- boot.ppfis(rw_hfstat, nboot = 1000)$fis.ci   # columns: lower limit, upper limit
 
-<div class="kable-table">
-
-|      ll |     hl |
-|--------:|-------:|
-| -0.3126 | 0.3293 |
-| -0.1770 | 0.1428 |
-| -0.1746 | 0.1366 |
-| -0.0707 | 0.3888 |
-| -0.1598 | 0.0439 |
-| -0.0332 | 0.0808 |
-
-</div>
-
-``` r
 # boot.ppfis() returns 26 rows with no population names attached. This is the
 # order they follow, so you can join them to the right populations in 4.7.
 pop_order <- levels(factor(rw_hfstat$pop))
-head(pop_order)
 ```
-
-    ## [1] "ANG" "BAN" "CMR" "DNT" "DP"  "HAP"
 
 > All 26 intervals include 0. ANG’s runs from −0.31 to +0.33 on 4 trees;
 > POS’s, on 28 trees, is only 0.09 wide.
@@ -783,24 +741,8 @@ rw_table[rw_table$pop == "NIA", ]
 
 ``` r
 fst_dist <- genet.dist(rw_hfstat, method = "WC84")   # Weir & Cockerham 1984
-fst <- as.matrix(fst_dist)
-dim(fst)                              # 26 x 26
-```
+fst <- as.matrix(fst_dist)            # a 26 x 26 matrix
 
-    ## [1] 26 26
-
-``` r
-round(fst[1:5, 1:5], 3)
-```
-
-    ##       ANG   BAN   CMR   DNT    DP
-    ## ANG 0.000 0.351 0.229 0.176 0.130
-    ## BAN 0.351 0.000 0.413 0.435 0.416
-    ## CMR 0.229 0.413 0.000 0.425 0.342
-    ## DNT 0.176 0.435 0.425 0.000 0.114
-    ## DP  0.130 0.416 0.342 0.114 0.000
-
-``` r
 pairs <- fst[lower.tri(fst)]          # the 325 unique pairs
 range(pairs); mean(pairs)             # compare the mean with the published GST = 0.25
 ```
@@ -824,24 +766,8 @@ print(levelplot(fst, xlab = "", ylab = "",
 ## 5.2 Test whether genetic differences increase with distance
 
 ``` r
-rw_coords <- read.csv("rosewood_coords.csv", row.names = 1)
-head(rw_coords)                       # which column is longitude, which latitude?
-```
+rw_coords <- read.csv("rosewood_coords.csv", row.names = 1)   # column 1 longitude, column 2 latitude
 
-<div class="kable-table">
-
-|     |      Lon |      Lat |
-|:----|---------:|---------:|
-| ANG | 104.0915 | 14.04555 |
-| BAN | 103.1325 | 18.30135 |
-| CMR | 108.0322 | 16.05859 |
-| DNT | 104.4883 | 10.97373 |
-| DP  | 103.7515 | 11.36869 |
-| HAP | 106.6969 | 13.80253 |
-
-</div>
-
-``` r
 common <- intersect(rownames(fst), rownames(rw_coords))
 length(common)                        # must be 26
 ```
@@ -1024,24 +950,8 @@ scatter(rw_dapc, col = clust_cols, cex = 1.1,
 ## 5.7 Work out cluster membership for each population and map it
 
 ``` r
-postprobs <- as.data.frame(rw_dapc$posterior)
-round(head(postprobs), 3)
-```
+postprobs <- as.data.frame(rw_dapc$posterior)   # one row per tree, one column per cluster
 
-<div class="kable-table">
-
-|            |    1 |     2 |     3 |   4 |    5 |
-|:-----------|-----:|------:|------:|----:|-----:|
-| ANG-coc-2  | 0.00 | 1.000 | 0.000 |   0 | 0.00 |
-| ANG-coc-4  | 0.00 | 1.000 | 0.000 |   0 | 0.00 |
-| ANG-coc-19 | 0.00 | 0.148 | 0.852 |   0 | 0.00 |
-| ANG-coc-20 | 0.00 | 0.011 | 0.989 |   0 | 0.00 |
-| BAN-coc-1  | 0.02 | 0.000 | 0.000 |   0 | 0.98 |
-| BAN-coc-2  | 0.00 | 0.000 | 0.000 |   0 | 1.00 |
-
-</div>
-
-``` r
 rw_pops <- pop(rosewood)
 qpop <- t(sapply(levels(rw_pops),
                  function(p) colMeans(postprobs[rw_pops == p, , drop = FALSE])))
